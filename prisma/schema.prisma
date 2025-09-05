@@ -1,0 +1,229 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// Modelo de usuário
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  name      String?
+  password  String?
+  emailVerified DateTime?
+  image     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  accounts Account[]
+  sessions Session[]
+  clients  Client[]
+  sales    Sale[]
+  expenses Expense[]
+  categories ExpenseCategory[]
+  recurringPayments RecurringExpensePayment[]
+  
+  @@map("users")
+}
+
+// Modelos NextAuth.js
+model Account {
+  id                Int     @id @default(autoincrement())
+  userId            Int
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           Int      @id @default(autoincrement())
+  sessionToken String   @unique
+  userId       Int
+  expires      DateTime
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// Modelo de cliente
+model Client {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String?
+  phone     String?
+  document  String?
+  address   String?
+  notes     String?
+  userId    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sales Sale[]
+  
+  @@map("clients")
+}
+
+// Modelo de venda
+model Sale {
+  id          Int      @id @default(autoincrement())
+  clientId    Int
+  totalAmount Float
+  saleDate    DateTime
+  notes       String?
+  userId      Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  client   Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments SalePayment[]
+  
+  @@map("sales")
+}
+
+// Pagamentos de vendas
+model SalePayment {
+  id                  Int           @id @default(autoincrement())
+  saleId              Int
+  type                PaymentType
+  amount              Float
+  dueDate             DateTime
+  status              PaymentStatus @default(PENDING)
+  paidDate            DateTime?
+  installmentNumber   Int?
+  totalInstallments   Int?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  // Relacionamentos
+  sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  
+  @@map("sale_payments")
+}
+
+// Categorias de despesas
+model ExpenseCategory {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  color       String?
+  userId      Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expenses Expense[]
+
+  @@unique([name, userId]) // Nome único por usuário
+  @@map("expense_categories")
+}
+
+// Modelo de despesa
+model Expense {
+  id          Int      @id @default(autoincrement())
+  description String
+  amount      Float
+  dueDate     DateTime
+  status      PaymentStatus @default(PENDING)
+  categoryId  Int
+  notes       String?
+  userId      Int
+  
+  // Configurações de parcelamento
+  installments          Int?
+  installmentNumber     Int?
+  totalInstallments     Int?
+  
+  // Configurações de recorrência
+  isRecurring          Boolean @default(false)
+  recurringFrequency   RecurringFrequency?
+  recurringDayOfMonth  Int?
+  recurringEndDate     DateTime?
+  parentExpenseId      Int? // Para despesas geradas automaticamente
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  paidAt    DateTime?
+
+  // Relacionamentos
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category ExpenseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  parent   Expense?        @relation("ExpenseRecurrence", fields: [parentExpenseId], references: [id])
+  children Expense[]       @relation("ExpenseRecurrence")
+  recurringPayments RecurringExpensePayment[]
+  
+  @@map("expenses")
+}
+
+// Histórico de pagamentos para despesas recorrentes
+model RecurringExpensePayment {
+  id          Int      @id @default(autoincrement())
+  expenseId   Int
+  paymentDate DateTime // Mês/ano da ocorrência paga
+  amount      Float
+  paidAt      DateTime @default(now())
+  notes       String?
+  userId      Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relacionamentos
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([expenseId, paymentDate]) // Uma despesa só pode ser paga uma vez por mês
+  @@map("recurring_expense_payments")
+}
+
+// Enums
+enum PaymentType {
+  ADVANCE
+  INSTALLMENT
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  PARTIAL
+  COMPLETED
+  OVERDUE
+}
+
+enum RecurringFrequency {
+  WEEKLY
+  MONTHLY
+  YEARLY
+}

@@ -23,7 +23,7 @@ export async function GET(
 
     const client = await prisma.client.findFirst({
       where: {
-        id,
+        id: parseInt(id),
         userId,
       },
     })
@@ -63,7 +63,7 @@ export async function PUT(
     // Verificar se cliente existe e pertence ao usuário
     const existingClient = await prisma.client.findFirst({
       where: {
-        id,
+        id: parseInt(id),
         userId,
       },
     })
@@ -77,7 +77,7 @@ export async function PUT(
 
     // Atualizar cliente
     const client = await prisma.client.update({
-      where: { id },
+      where: { id: parseInt(id) },
       data: {
         ...validatedData,
         email: validatedData.email || null,
@@ -88,7 +88,7 @@ export async function PUT(
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Dados inválidos', details: error.errors },
+        { error: 'Dados inválidos', details: error.issues },
         { status: 400 }
       )
     }
@@ -114,7 +114,7 @@ export async function DELETE(
     // Verificar se cliente existe e pertence ao usuário
     const existingClient = await prisma.client.findFirst({
       where: {
-        id,
+        id: parseInt(id),
         userId,
       },
     })
@@ -129,7 +129,7 @@ export async function DELETE(
     // Verificar se cliente possui vendas
     const salesCount = await prisma.sale.count({
       where: {
-        clientId: id,
+        clientId: parseInt(id),
       },
     })
 
@@ -142,7 +142,7 @@ export async function DELETE(
 
     // Deletar cliente
     await prisma.client.delete({
-      where: { id },
+      where: { id: parseInt(id) },
     })
 
     return NextResponse.json({ message: 'Cliente deletado com sucesso' })

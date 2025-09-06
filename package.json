@@ -3,16 +3,21 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
+    "dev": "next dev --turbopack -p 3005",
+    "build": "prisma generate && next build",
+    "build:fast": "prisma generate && SKIP_ENV_VALIDATION=true next build",
+    "start": "next start -p 3005",
+    "lint": "next lint --fix",
+    "lint:ignore": "next lint --fix --max-warnings=999",
     "db:studio": "prisma studio",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate deploy",
+    "db:seed": "tsx prisma/seed.ts",
+    "docker:build": "docker-compose build --no-cache",
+    "docker:up": "docker-compose up -d",
     "docker:dev": "docker-compose -f docker-compose.dev.yml up -d",
-    "docker:build": "docker-compose build",
-    "docker:up": "docker-compose up -d"
+    "build:full": "npm run db:migrate && npm run build",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.10.0",

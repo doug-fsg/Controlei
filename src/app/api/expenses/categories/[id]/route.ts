@@ -26,7 +26,7 @@ export async function PUT(
     // Verificar se categoria existe e pertence ao usuário
     const existingCategory = await prisma.expenseCategory.findFirst({
       where: {
-        id,
+        id: parseInt(id),
         userId,
       },
     })
@@ -44,7 +44,7 @@ export async function PUT(
         where: {
           name: validatedData.name,
           userId,
-          id: { not: id },
+          id: { not: parseInt(id) },
         },
       })
 
@@ -58,7 +58,7 @@ export async function PUT(
 
     // Atualizar categoria
     const category = await prisma.expenseCategory.update({
-      where: { id },
+      where: { id: parseInt(id) },
       data: validatedData,
     })
 
@@ -66,7 +66,7 @@ export async function PUT(
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(
-        { error: 'Dados inválidos', details: error.errors },
+        { error: 'Dados inválidos', details: error.issues },
         { status: 400 }
       )
     }
@@ -92,7 +92,7 @@ export async function DELETE(
     // Verificar se categoria existe e pertence ao usuário
     const existingCategory = await prisma.expenseCategory.findFirst({
       where: {
-        id,
+        id: parseInt(id),
         userId,
       },
     })
@@ -107,7 +107,7 @@ export async function DELETE(
     // Verificar se categoria possui despesas
     const expensesCount = await prisma.expense.count({
       where: {
-        categoryId: id,
+        categoryId: parseInt(id),
       },
     })
 
@@ -120,7 +120,7 @@ export async function DELETE(
 
     // Deletar categoria
     await prisma.expenseCategory.delete({
-      where: { id },
+      where: { id: parseInt(id) },
     })
 
     return NextResponse.json({ message: 'Categoria deletada com sucesso' })

@@ -10,6 +10,7 @@ datasource db {
   url      = "file:./dev.db"
 }
 
+
 // Modelo de usuário
 model User {
   id        Int      @id @default(autoincrement())

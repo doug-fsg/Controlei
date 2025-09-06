@@ -9,7 +9,8 @@ WORKDIR /app
 
 # Instalar dependências baseado no gerenciador de pacotes preferido
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev && npm cache clean --force
+COPY prisma ./prisma
+RUN npm install --omit=dev && npm cache clean --force
 
 # Reconstruir o código fonte apenas quando necessário
 FROM base AS builder
@@ -18,7 +19,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Instalar dependências de dev para build
-RUN npm ci
+RUN npm install
 
 # Gerar cliente Prisma
 RUN npx prisma generate

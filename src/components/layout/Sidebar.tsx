@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Logo, LogoIcon } from "@/components/ui/Logo";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
@@ -57,15 +58,10 @@ export default function Sidebar() {
         "border-border dark:border-spotify-medium-gray spotify:border-spotify-medium-gray",
         isCollapsed ? "justify-center" : "justify-between"
       )}>
-        {!isCollapsed && (
-          <h1 className={cn(
-            "text-xl font-bold",
-            "text-spotify-green-light", // Light mode - verde escuro
-            "dark:spotify-text-gradient", // Dark mode
-            "spotify:spotify-text-gradient" // Spotify mode
-          )}>
-            Duotec
-          </h1>
+        {isCollapsed ? (
+          <LogoIcon />
+        ) : (
+          <Logo size="md" showText={false} />
         )}
         <Button
           variant="ghost"

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
-import { requireAuth } from '@/lib/auth-utils'
+import { requireAuth, getCurrentOrganization } from '@/lib/auth-utils'
 
 // Schema de validação para criação de cliente
 const createClientSchema = z.object({
@@ -17,10 +17,18 @@ const createClientSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const userId = await requireAuth()
+    const organization = await getCurrentOrganization()
+    
+    if (!organization) {
+      return NextResponse.json(
+        { error: 'Organização não encontrada' },
+        { status: 400 }
+      )
+    }
 
     const clients = await prisma.client.findMany({
       where: {
-        userId,
+        organizationId: organization.id,
       },
       orderBy: {
         name: 'asc',
@@ -29,7 +37,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(clients)
   } catch (error) {
-    if (error instanceof Error && error.message === 'Não autorizado') {
+    if (error instanceof Error && (error.message === 'Não autorizado' || error.message === 'Acesso negado à organização')) {
       return NextResponse.json(
         { error: 'Não autorizado' },
         { status: 401 }
@@ -48,6 +56,14 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const userId = await requireAuth()
+    const organization = await getCurrentOrganization()
+    
+    if (!organization) {
+      return NextResponse.json(
+        { error: 'Organização não encontrada' },
+        { status: 400 }
+      )
+    }
     
     const body = await request.json()
     
@@ -59,13 +75,14 @@ export async function POST(request: NextRequest) {
       data: {
         ...validatedData,
         userId,
+        organizationId: organization.id,
         email: validatedData.email || null,
       },
     })
 
     return NextResponse.json(client, { status: 201 })
   } catch (error) {
-    if (error instanceof Error && error.message === 'Não autorizado') {
+    if (error instanceof Error && (error.message === 'Não autorizado' || error.message === 'Acesso negado à organização')) {
       return NextResponse.json(
         { error: 'Não autorizado' },
         { status: 401 }

@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { UserPlus, Music } from 'lucide-react'
+import { UserPlus } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { Logo } from '@/components/ui/Logo'
 
 export default function SignUp() {
   const [formData, setFormData] = useState({
@@ -74,18 +75,13 @@ export default function SignUp() {
       <Card className="w-full max-w-md spotify-card spotify-hover">
         <CardHeader className="text-center">
           <div className="flex items-center justify-center mb-4">
-            <Music className={cn(
-              "h-8 w-8",
-              "text-spotify-green-light", // Light mode
-              "dark:text-spotify-green", // Dark mode
-              "spotify:text-spotify-green" // Spotify mode
-            )} />
+            <Logo size="lg" showText={false} />
           </div>
           <CardTitle className={cn(
             "text-2xl font-bold",
-            "spotify-text-gradient", // Aplica o gradiente em todos os modos
-            "dark:text-white", // Dark mode
-            "spotify:text-white" // Spotify mode
+            "text-spotify-green-light", // Light mode - mesma cor do botão
+            "dark:text-spotify-green", // Dark mode - mesma cor do botão
+            "spotify:text-spotify-green" // Spotify mode - mesma cor do botão
           )}>
             Criar Conta
           </CardTitle>

@@ -11,42 +11,6 @@ datasource db {
 }
 
 
-// Modelo de organização/conta (multi-tenant)
-model Organization {
-  id        Int      @id @default(autoincrement())
-  name      String
-  slug      String   @unique  // para URLs amigáveis
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relacionamentos
-  users     UserOrganization[]
-  clients   Client[]
-  sales     Sale[]
-  expenses  Expense[]
-  categories ExpenseCategory[]
-  recurringPayments RecurringExpensePayment[]
-
-  @@map("organizations")
-}
-
-// Relacionamento Usuário-Organização (preparado para roles futuros)
-model UserOrganization {
-  id             Int      @id @default(autoincrement())
-  userId         Int
-  organizationId Int
-  role           String   @default("member") // 'owner', 'admin', 'member' (futuro)
-  isActive       Boolean  @default(true)
-  joinedAt       DateTime @default(now())
-  
-  // Relacionamentos
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, organizationId])
-  @@map("user_organizations")
-}
-
 // Modelo de usuário
 model User {
   id        Int      @id @default(autoincrement())
@@ -58,14 +22,9 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relacionamentos NextAuth
+  // Relacionamentos
   accounts Account[]
   sessions Session[]
-  
-  // Relacionamentos multi-tenant
-  organizations UserOrganization[]
-  
-  // MANTENDO relacionamentos diretos por enquanto (para não quebrar)
   clients  Client[]
   sales    Sale[]
   expenses Expense[]
@@ -126,14 +85,12 @@ model Client {
   address   String?
   notes     String?
   userId    Int
-  organizationId Int?  // nullable por enquanto para migração
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relacionamentos
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  sales        Sale[]
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sales Sale[]
   
   @@map("clients")
 }
@@ -146,15 +103,13 @@ model Sale {
   saleDate    DateTime
   notes       String?
   userId      Int
-  organizationId Int?  // nullable por enquanto para migração
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   // Relacionamentos
-  client       Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  payments     SalePayment[]
+  client   Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payments SalePayment[]
   
   @@map("sales")
 }
@@ -186,16 +141,14 @@ model ExpenseCategory {
   description String?
   color       String?
   userId      Int
-  organizationId Int?  // nullable por enquanto para migração
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   // Relacionamentos
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  expenses     Expense[]
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expenses Expense[]
 
-  @@unique([name, userId]) // Nome único por usuário (manteremos por enquanto)
+  @@unique([name, userId]) // Nome único por usuário
   @@map("expense_categories")
 }
 
@@ -209,7 +162,6 @@ model Expense {
   categoryId  Int
   notes       String?
   userId      Int
-  organizationId Int?  // nullable por enquanto para migração
   
   // Configurações de parcelamento
   installments          Int?
@@ -228,11 +180,10 @@ model Expense {
   paidAt    DateTime?
 
   // Relacionamentos
-  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization Organization?   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  category     ExpenseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  parent       Expense?        @relation("ExpenseRecurrence", fields: [parentExpenseId], references: [id])
-  children     Expense[]       @relation("ExpenseRecurrence")
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category ExpenseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  parent   Expense?        @relation("ExpenseRecurrence", fields: [parentExpenseId], references: [id])
+  children Expense[]       @relation("ExpenseRecurrence")
   recurringPayments RecurringExpensePayment[]
   
   @@map("expenses")
@@ -247,14 +198,12 @@ model RecurringExpensePayment {
   paidAt      DateTime @default(now())
   notes       String?
   userId      Int
-  organizationId Int?  // nullable por enquanto para migração
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   // Relacionamentos
-  expense      Expense       @relation(fields: [expenseId], references: [id], onDelete: Cascade)
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@unique([expenseId, paymentDate]) // Uma despesa só pode ser paga uma vez por mês
   @@map("recurring_expense_payments")

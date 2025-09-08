@@ -6,6 +6,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { Logo } from "@/components/ui/Logo";
 import {
   DropdownMenu,
   DropdownMenuContent,

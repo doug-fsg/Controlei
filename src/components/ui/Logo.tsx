@@ -26,7 +26,7 @@ export function Logo({ className = '', showText = true, size = 'md' }: LogoProps
     <Link href="/dashboard" className={`flex items-center gap-2 ${className}`}>
       <Image
         src="/logo.png"
-        alt="Sistema Financeiro"
+        alt="Controlei"
         width={config.width}
         height={config.height}
         className="object-contain"
@@ -34,7 +34,7 @@ export function Logo({ className = '', showText = true, size = 'md' }: LogoProps
       />
       {showText && (
         <span className={`font-semibold text-gray-900 ${textSizeClasses[size]}`}>
-          Sistema Financeiro
+          Controlei
         </span>
       )}
     </Link>
@@ -47,7 +47,7 @@ export function LogoIcon({ className = '' }: { className?: string }) {
     <Link href="/dashboard" className={`flex items-center justify-center ${className}`}>
       <Image
         src="/icon.png"
-        alt="Sistema Financeiro"
+        alt="Controlei"
         width={32}
         height={32}
         className="h-8 w-8"

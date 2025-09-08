@@ -1,4 +1,4 @@
-# 🚀 Guia de Build - Sistema Financeiro
+# 🚀 Guia de Build - controlei
 
 Este guia mostra como fazer o build do sistema de forma simples e rápida.
 

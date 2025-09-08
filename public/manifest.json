@@ -1,6 +1,6 @@
 {
-  "name": "Sistema Financeiro",
-  "short_name": "Sistema Financeiro",
+  "name": "Controlei",
+  "short_name": "Controlei",
   "description": "Sistema de controle financeiro para entradas e saídas",
   "start_url": "/dashboard",
   "display": "standalone",

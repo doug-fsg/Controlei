@@ -1,4 +1,4 @@
-# Sistema Financeiro - MicroSaaS
+# Controlei - MicroSaaS
 
 Sistema web de controle financeiro para entradas e saídas, desenvolvido para pequenos empreendedores que precisam de um controle financeiro simples e eficiente.
 

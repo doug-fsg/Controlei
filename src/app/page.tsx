@@ -35,7 +35,7 @@ export default function Home() {
           "dark:text-white", // Dark mode
           "spotify:text-white" // Spotify mode
         )}>
-          Sistema Financeiro
+          Controlei
         </h1>
         <p className={cn(
           "text-lg",

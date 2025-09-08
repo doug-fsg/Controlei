@@ -37,7 +37,7 @@
 ### **Sidebar:**
 ```tsx
 // Quando expandida
-<Logo size="md" /> // Logo + texto "Sistema Financeiro"
+<Logo size="md" /> 
 
 // Quando colapsada  
 <LogoIcon /> // Apenas ícone

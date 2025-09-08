@@ -12,16 +12,21 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Search, Edit, Trash2, Loader2, AlertCircle, Users, Calendar } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Loader2, AlertCircle, Users, Calendar, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import ClientForm from "@/components/clients/ClientForm";
 import { useClients, useCreateClient, useUpdateClient, useDeleteClient } from "@/hooks/useClients";
 import { Client } from "@/types";
 
+type SortField = 'name' | 'email' | 'phone' | 'document' | 'createdAt';
+type SortDirection = 'asc' | 'desc' | null;
+
 export default function ClientsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [sortField, setSortField] = useState<SortField>('name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   
   // Hooks da API
   const { data: clients = [], isLoading, error } = useClients();
@@ -34,6 +39,77 @@ export default function ClientsPage() {
     client.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     client.document?.includes(searchTerm)
   );
+
+  // Função para ordenar os clientes
+  const sortedClients = [...filteredClients].sort((a: Client, b: Client) => {
+    if (!sortDirection) return 0;
+    
+    let aValue: string | number;
+    let bValue: string | number;
+    
+    switch (sortField) {
+      case 'name':
+        aValue = a.name.toLowerCase();
+        bValue = b.name.toLowerCase();
+        break;
+      case 'email':
+        aValue = (a.email || '').toLowerCase();
+        bValue = (b.email || '').toLowerCase();
+        break;
+      case 'phone':
+        aValue = (a.phone || '').toLowerCase();
+        bValue = (b.phone || '').toLowerCase();
+        break;
+      case 'document':
+        aValue = (a.document || '').toLowerCase();
+        bValue = (b.document || '').toLowerCase();
+        break;
+      case 'createdAt':
+        aValue = new Date(a.createdAt).getTime();
+        bValue = new Date(b.createdAt).getTime();
+        break;
+      default:
+        return 0;
+    }
+    
+    if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  // Função para lidar com clique no cabeçalho
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // Se clicou no mesmo campo, alterna a direção
+      if (sortDirection === 'asc') {
+        setSortDirection('desc');
+      } else if (sortDirection === 'desc') {
+        setSortDirection(null);
+      } else {
+        setSortDirection('asc');
+      }
+    } else {
+      // Se clicou em um campo diferente, define como ascendente
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Função para obter o ícone de ordenação
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-4 w-4 text-gray-400" />;
+    }
+    
+    switch (sortDirection) {
+      case 'asc':
+        return <ArrowUp className="h-4 w-4 text-gray-600 dark:text-gray-300" />;
+      case 'desc':
+        return <ArrowDown className="h-4 w-4 text-gray-600 dark:text-gray-300" />;
+      default:
+        return <ArrowUpDown className="h-4 w-4 text-gray-400" />;
+    }
+  };
 
   const handleCreateClient = async (data: Partial<Client>) => {
     try {
@@ -142,10 +218,10 @@ export default function ClientsPage() {
 
 
 
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm spotify-card">
-          <div className="p-4 pb-2">
+        <Card className="spotify-hover">
+          <CardHeader>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Lista de Clientes</h3>
+              <CardTitle className="text-lg font-semibold">Lista de Clientes</CardTitle>
             </div>
             
             {/* Busca integrada e sutil - estilo expenses */}
@@ -168,8 +244,8 @@ export default function ClientsPage() {
                 )}
               </div>
             </div>
-          </div>
-          <div className="px-4">
+          </CardHeader>
+          <CardContent>
             {isLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className={cn(
@@ -184,16 +260,56 @@ export default function ClientsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Nome</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Telefone</TableHead>
-                    <TableHead>Documento</TableHead>
-                    <TableHead>Criado em</TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 select-none"
+                      onClick={() => handleSort('name')}
+                    >
+                      <div className="flex items-center gap-2">
+                        Nome
+                        {getSortIcon('name')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 select-none"
+                      onClick={() => handleSort('email')}
+                    >
+                      <div className="flex items-center gap-2">
+                        Email
+                        {getSortIcon('email')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 select-none"
+                      onClick={() => handleSort('phone')}
+                    >
+                      <div className="flex items-center gap-2">
+                        Telefone
+                        {getSortIcon('phone')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 select-none"
+                      onClick={() => handleSort('document')}
+                    >
+                      <div className="flex items-center gap-2">
+                        Documento
+                        {getSortIcon('document')}
+                      </div>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 select-none"
+                      onClick={() => handleSort('createdAt')}
+                    >
+                      <div className="flex items-center gap-2">
+                        Criado em
+                        {getSortIcon('createdAt')}
+                      </div>
+                    </TableHead>
                     <TableHead>Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredClients.map((client: Client) => (
+                  {sortedClients.map((client: Client) => (
                     <TableRow key={client.id} className="spotify-hover">
                       <TableCell className="font-medium">{client.name}</TableCell>
                       <TableCell>{client.email || '-'}</TableCell>
@@ -245,13 +361,13 @@ export default function ClientsPage() {
                 </TableBody>
               </Table>
             )}
-            {!isLoading && filteredClients.length === 0 && (
+            {!isLoading && sortedClients.length === 0 && (
               <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                 {searchTerm ? "Nenhum cliente encontrado com os filtros aplicados" : "Nenhum cliente cadastrado"}
               </div>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </DashboardLayout>
   );

@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAuth } from '@/lib/auth-utils'
+import { requireAuth, getCurrentOrganization } from '@/lib/auth-utils'
 
 export async function GET(request: NextRequest) {
   try {
     const userId = await requireAuth()
+    const organization = await getCurrentOrganization()
+    
+    if (!organization) {
+      return NextResponse.json(
+        { error: 'Organização não encontrada' },
+        { status: 400 }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     
     // Parâmetros de filtro
@@ -45,7 +54,10 @@ export async function GET(request: NextRequest) {
     // Buscar pagamentos (entradas) que foram efetivados no período
     const payments = await prisma.salePayment.findMany({
       where: {
-        sale: { userId },
+        sale: { 
+          userId,
+          organizationId: organization.id,
+        },
         OR: [
           // Pagamentos que vencem no período (pendentes ou pagos)
           {
@@ -83,6 +95,7 @@ export async function GET(request: NextRequest) {
     const salesCashOnly = await prisma.sale.findMany({
       where: {
         userId,
+        organizationId: organization.id,
         saleDate: {
           gte: startDate,
           lte: endDate,
@@ -101,6 +114,7 @@ export async function GET(request: NextRequest) {
     const expenses = await prisma.expense.findMany({
       where: {
         userId,
+        organizationId: organization.id,
         dueDate: {
           gte: startDate,
           lte: endDate,
@@ -236,6 +250,7 @@ export async function GET(request: NextRequest) {
       const monthSales = await prisma.sale.findMany({
         where: {
           userId,
+          organizationId: organization.id,
         },
         include: {
           payments: {
@@ -253,6 +268,7 @@ export async function GET(request: NextRequest) {
       const monthExpenses = await prisma.expense.findMany({
         where: {
           userId,
+          organizationId: organization.id,
           dueDate: {
             gte: monthStart,
             lte: monthEnd,
@@ -305,7 +321,7 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    if (error instanceof Error && error.message === 'Não autorizado') {
+    if (error instanceof Error && (error.message === 'Não autorizado' || error.message === 'Acesso negado à organização')) {
       return NextResponse.json(
         { error: 'Não autorizado' },
         { status: 401 }

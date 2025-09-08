@@ -360,9 +360,9 @@ export default function Dashboard() {
 
         {/* Atividade Recente - Estilo similar às outras páginas */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm spotify-card">
-            <div className="p-4 border-b border-gray-100 dark:border-gray-700">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
+          <Card className="spotify-hover">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-sm">
                 <ShoppingCart className={cn(
                   "h-4 w-4",
                   "text-spotify-green-light", // Light mode
@@ -370,9 +370,9 @@ export default function Dashboard() {
                   "spotify:text-spotify-green" // Spotify mode
                 )} />
                 Vendas Recentes
-              </h3>
-            </div>
-            <div className="p-4">
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
               <div className="space-y-3">
                 {dashboardData?.recentSales && dashboardData.recentSales.length > 0 ? (
                   dashboardData.recentSales.map((sale) => (
@@ -402,17 +402,17 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
-          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm spotify-card">
-            <div className="p-4 border-b border-gray-100 dark:border-gray-700">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
+          <Card className="spotify-hover">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-sm">
                 <TrendingDown className="h-4 w-4 text-red-600" />
                 Despesas Recentes
-              </h3>
-            </div>
-            <div className="p-4">
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
               <div className="space-y-3">
                 {dashboardData?.recentExpenses && dashboardData.recentExpenses.length > 0 ? (
                   dashboardData.recentExpenses.map((expense) => (
@@ -438,22 +438,19 @@ export default function Dashboard() {
                   </div>
                 )}
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Card de Relatórios - Link rápido */}
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm spotify-card">
-          <div className="p-4 border-b border-gray-100 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-blue-500 dark:text-blue-400" />
-                Relatórios Financeiros
-              </h3>
-            </div>
-          </div>
-          
-          <div className="p-4">
+        <Card className="spotify-hover">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <TrendingUp className="h-4 w-4 text-blue-500 dark:text-blue-400" />
+              Relatórios Financeiros
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 dark:text-gray-300">
@@ -469,8 +466,8 @@ export default function Dashboard() {
                 Ver Relatórios
               </Button>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
         </div>
       </DashboardLayout>
     </ProtectedRoute>

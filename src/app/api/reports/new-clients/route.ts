@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAuth } from '@/lib/auth-utils'
+import { requireAuth, getCurrentOrganization } from '@/lib/auth-utils'
 
 export async function GET(request: NextRequest) {
   try {
     const userId = await requireAuth()
+    const organization = await getCurrentOrganization()
+    
+    if (!organization) {
+      return NextResponse.json(
+        { error: 'Organização não encontrada' },
+        { status: 400 }
+      )
+    }
+
     const { searchParams } = new URL(request.url)
     
     // Parâmetros de filtro
@@ -19,6 +28,7 @@ export async function GET(request: NextRequest) {
     const newClients = await prisma.client.findMany({
       where: {
         userId,
+        organizationId: organization.id,
         createdAt: {
           gte: startDate,
         },
@@ -37,7 +47,10 @@ export async function GET(request: NextRequest) {
 
     // Buscar todos os clientes para comparação
     const allClients = await prisma.client.findMany({
-      where: { userId },
+      where: { 
+        userId,
+        organizationId: organization.id,
+      },
       include: {
         sales: {
           include: {
@@ -104,6 +117,7 @@ export async function GET(request: NextRequest) {
     const previousNewClients = await prisma.client.count({
       where: {
         userId,
+        organizationId: organization.id,
         createdAt: {
           gte: previousStartDate,
           lt: startDate,
@@ -160,7 +174,7 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    if (error instanceof Error && error.message === 'Não autorizado') {
+    if (error instanceof Error && (error.message === 'Não autorizado' || error.message === 'Acesso negado à organização')) {
       return NextResponse.json(
         { error: 'Não autorizado' },
         { status: 401 }

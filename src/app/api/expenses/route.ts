@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { requireAuth, getCurrentOrganization } from '@/lib/auth-utils'
 
 // Schema de validação para criação de despesa
 const createExpenseSchema = z.object({
@@ -27,12 +28,19 @@ const createExpenseSchema = z.object({
 // GET /api/expenses - Listar despesas
 export async function GET(request: NextRequest) {
   try {
-    // TODO: Pegar userId da sessão
-    const userId = 1
+    const userId = await requireAuth()
+    const organization = await getCurrentOrganization()
+    
+    if (!organization) {
+      return NextResponse.json(
+        { error: 'Organização não encontrada' },
+        { status: 400 }
+      )
+    }
 
     const expenses = await prisma.expense.findMany({
       where: {
-        userId,
+        organizationId: organization.id,
       },
       include: {
         category: true,
@@ -52,6 +60,13 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(transformedExpenses)
   } catch (error) {
+    if (error instanceof Error && (error.message === 'Não autorizado' || error.message === 'Acesso negado à organização')) {
+      return NextResponse.json(
+        { error: 'Não autorizado' },
+        { status: 401 }
+      )
+    }
+    
     console.error('Erro ao buscar despesas:', error)
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
@@ -63,20 +78,27 @@ export async function GET(request: NextRequest) {
 // POST /api/expenses - Criar despesa
 export async function POST(request: NextRequest) {
   try {
+    const userId = await requireAuth()
+    const organization = await getCurrentOrganization()
+    
+    if (!organization) {
+      return NextResponse.json(
+        { error: 'Organização não encontrada' },
+        { status: 400 }
+      )
+    }
+
     const body = await request.json()
     
     // Validar dados
     const validatedData = createExpenseSchema.parse(body)
-    
-    // TODO: Pegar userId da sessão
-    const userId = 1
 
-    // Verificar se categoria existe e pertence ao usuário
+    // Verificar se categoria existe e pertence à organização
     const categoryId = validatedData.categoryId;
     const category = await prisma.expenseCategory.findFirst({
       where: {
         id: categoryId,
-        userId,
+        organizationId: organization.id,
       },
     })
 
@@ -115,6 +137,7 @@ export async function POST(request: NextRequest) {
               categoryId: categoryId,
               notes: validatedData.notes,
               userId,
+              organizationId: organization.id,
               installmentNumber: i + 1,
               totalInstallments: numberOfInstallments,
             },
@@ -135,6 +158,7 @@ export async function POST(request: NextRequest) {
             categoryId: categoryId,
             notes: validatedData.notes,
             userId,
+            organizationId: organization.id,
             isRecurring: true,
             recurringFrequency: frequency,
             recurringDayOfMonth: dayOfMonth,
@@ -153,6 +177,7 @@ export async function POST(request: NextRequest) {
             categoryId: categoryId,
             notes: validatedData.notes,
             userId,
+            organizationId: organization.id,
           },
         })
 
@@ -178,6 +203,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Dados inválidos', details: error.issues },
         { status: 400 }
+      )
+    }
+
+    if (error instanceof Error && (error.message === 'Não autorizado' || error.message === 'Acesso negado à organização')) {
+      return NextResponse.json(
+        { error: 'Não autorizado' },
+        { status: 401 }
       )
     }
 

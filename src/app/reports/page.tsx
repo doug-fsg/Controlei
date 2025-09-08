@@ -21,13 +21,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, TrendingDown, Calendar, Filter, AlertTriangle, DollarSign, BarChart3, Loader2, Download, Eye, EyeOff, Clock, Target, PieChart, Activity, Users, UserPlus, ShoppingBag, Percent } from "lucide-react";
+import { TrendingUp, TrendingDown, Calendar, Filter, AlertTriangle, DollarSign, BarChart3, Loader2, Download, Eye, EyeOff, Clock, Target, PieChart, Activity } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useCashFlow, type CashFlowFilters, type CashFlowItem } from "@/hooks/useCashFlow";
 import { useCategories } from "@/hooks/useCategories";
-import { useNewClients } from "@/hooks/useClients";
 
 // Estado inicial dos filtros
 const initialFilters: CashFlowFilters = {
@@ -57,19 +56,11 @@ export default function ReportsPage() {
   // Buscar categorias para o dropdown
   const { data: categories = [] } = useCategories();
   
-  // Buscar dados de novos clientes
-  const { data: newClientsResponse, isLoading: isLoadingNewClients } = useNewClients();
-  
   // Extrair dados da resposta
   const cashFlowData = (cashFlowResponse as any)?.items || [];
   const summary = (cashFlowResponse as any)?.summary;
   const periodAnalysis = (cashFlowResponse as any)?.periodAnalysis || [];
   const monthlyProjection = (cashFlowResponse as any)?.monthlyProjection || [];
-  
-  // Extrair dados dos novos clientes
-  const newClients = (newClientsResponse as any)?.clients || [];
-  const newClientsSummary = (newClientsResponse as any)?.summary;
-  const newClientsTemporalAnalysis = (newClientsResponse as any)?.temporalAnalysis || [];
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -266,10 +257,9 @@ export default function ReportsPage() {
         </div>
 
         <Tabs defaultValue="cashflow" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="cashflow">Fluxo de Caixa</TabsTrigger>
             <TabsTrigger value="overdue">Inadimplência</TabsTrigger>
-            <TabsTrigger value="new-clients">Novos Clientes</TabsTrigger>
           </TabsList>
 
           {/* Fluxo de Caixa */}
@@ -849,207 +839,6 @@ export default function ReportsPage() {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
-
-          {/* Novos Clientes */}
-          <TabsContent value="new-clients" className="space-y-6">
-            {(newClientsResponse as any) && (
-              <>
-                {/* KPIs Principais */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Card className="spotify-hover">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Novos Clientes</CardTitle>
-                      <UserPlus className={cn(
-                    "h-4 w-4",
-                        "text-spotify-green-light dark:text-spotify-green spotify:text-spotify-green"
-                  )} />
-                </CardHeader>
-                <CardContent>
-                      <div className="flex items-baseline space-x-2">
-                  <div className={cn(
-                    "text-2xl font-bold",
-                          "text-spotify-green-light dark:text-spotify-green spotify:text-spotify-green"
-                        )}>
-                          {newClientsSummary?.totalNewClients || 0}
-                        </div>
-                        <div className={cn(
-                          "text-sm font-medium",
-                          (newClientsSummary?.growthRate || 0) >= 0 ? "text-green-600" : "text-red-600"
-                        )}>
-                          {(newClientsSummary?.growthRate || 0) >= 0 ? '+' : ''}{newClientsSummary?.growthRate?.toFixed(0) || 0}%
-                        </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                        {newClientsSummary?.periodLabel || 'Último mês'}
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="spotify-hover">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Receita Gerada</CardTitle>
-                      <DollarSign className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                </CardHeader>
-                <CardContent>
-                      <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                        {formatCurrency(newClientsSummary?.totalRevenue || 0)}
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                        {newClientsSummary?.clientsWithSales || 0} clientes ativos
-                  </p>
-                </CardContent>
-              </Card>
-                </div>
-
-                {/* Lista de Novos Clientes */}
-              <Card className="spotify-hover">
-                  <CardHeader>
-                    <CardTitle className="flex items-center justify-between">
-                      <span>Novos Clientes Recentes</span>
-                      <Badge variant="outline" className="text-xs">
-                        {newClients.length} clientes
-                      </Badge>
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {newClients.length === 0 ? (
-                      <div className="text-center py-12">
-                        <UserPlus className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                        <div className="text-muted-foreground">
-                          <p className="font-medium">Nenhum cliente novo</p>
-                          <p className="text-sm">Nenhum cliente foi cadastrado no período selecionado</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Cliente</TableHead>
-                              <TableHead>Data de Cadastro</TableHead>
-                              <TableHead>Primeira Compra</TableHead>
-                              <TableHead className="text-right">Total Vendas</TableHead>
-                              <TableHead className="text-right">Valor Pago</TableHead>
-                              <TableHead className="text-center">Status</TableHead>
-                              <TableHead className="text-right">Ticket Médio</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {newClients.map((client: any) => (
-                              <TableRow key={client.id} className="spotify-hover">
-                                <TableCell className="font-medium">
-                                  <div className="flex flex-col">
-                                    <span>{client.name}</span>
-                                    {client.email && (
-                                      <span className="text-xs text-muted-foreground">{client.email}</span>
-                                    )}
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <span className="text-sm">
-                                    {formatDate(client.createdAt)}
-                                  </span>
-                                </TableCell>
-                                <TableCell>
-                                  {client.firstSaleDate ? (
-                                    <div className="flex flex-col">
-                                      <span className="text-sm">{formatDate(client.firstSaleDate)}</span>
-                                      <span className="text-xs text-muted-foreground">
-                                        {client.daysSinceFirstSale} dias atrás
-                                      </span>
-                                    </div>
-                                  ) : (
-                                    <span className="text-xs text-muted-foreground">Sem compras</span>
-                                  )}
-                                </TableCell>
-                                <TableCell className="text-right font-semibold">
-                                  {formatCurrency(client.totalSales)}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <span className={cn(
-                                    "font-semibold",
-                                    client.totalPaid > 0 ? "text-spotify-green" : "text-muted-foreground"
-                                  )}>
-                                    {formatCurrency(client.totalPaid)}
-                                  </span>
-                                </TableCell>
-                                <TableCell className="text-center">
-                                  <Badge 
-                                    variant={
-                                      client.status === 'PAID' ? 'default' : 
-                                      client.status === 'PENDING' ? 'secondary' : 
-                                      'outline'
-                                    }
-                                    className={
-                                      client.status === 'PAID' ? "bg-spotify-green/20 text-spotify-green border-spotify-green" :
-                                      client.status === 'PENDING' ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" :
-                                      "text-muted-foreground"
-                                    }
-                                  >
-                                    {client.status === 'PAID' ? 'Ativo' : 
-                                     client.status === 'PENDING' ? 'Pendente' : 
-                                     'Sem Compras'}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  {client.salesCount > 0 ? (
-                                    <span className="font-medium">
-                                      {formatCurrency(client.averageTicket)}
-                                    </span>
-                                  ) : (
-                                    <span className="text-muted-foreground text-xs">-</span>
-                                  )}
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                  </div>
-                    )}
-                </CardContent>
-              </Card>
-
-                {/* Análise Temporal */}
-                {newClientsTemporalAnalysis.length > 0 && (
-              <Card className="spotify-hover">
-                    <CardHeader>
-                      <CardTitle className="flex items-center space-x-2">
-                        <BarChart3 className={cn(
-                          "h-5 w-5",
-                          "text-spotify-green-light dark:text-spotify-green spotify:text-spotify-green"
-                        )} />
-                        <span>Evolução de Novos Clientes</span>
-                      </CardTitle>
-                </CardHeader>
-                <CardContent>
-                      <div className="space-y-4">
-                        {newClientsTemporalAnalysis.slice(-10).map((period: any, index: any) => (
-                          <div key={period.date} className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800">
-                            <div className="flex items-center space-x-3">
-                              <div className="text-sm font-medium">
-                                {formatDate(period.date)}
-                              </div>
-                              <div className="flex space-x-4">
-                                <span className="text-xs text-spotify-green">
-                                  {period.count} novos
-                                </span>
-                                <span className="text-xs text-purple-600">
-                                  {formatCurrency(period.revenue)}
-                                </span>
-                              </div>
-                            </div>
-                            <div className="text-sm font-bold text-spotify-green">
-                              +{period.count}
-                            </div>
-                          </div>
-                        ))}
-                  </div>
-                </CardContent>
-              </Card>
-                )}
-              </>
-            )}
           </TabsContent>
 
         </Tabs>

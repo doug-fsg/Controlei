@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, Search, CheckCircle, Loader2, Eye, Edit, Trash2, MoreVertical, Calendar, Filter, TrendingUp, TrendingDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import ExpenseForm from "@/components/expenses/ExpenseForm";
 import { Expense, CreateExpenseData, ExpenseCategory } from "@/types";
@@ -361,8 +362,21 @@ export default function ExpensesPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Despesas</h1>
-            <p className="text-gray-600 dark:text-gray-300">Gerencie suas despesas e pagamentos</p>
+            <h1 className={cn(
+              "text-3xl font-bold",
+              "spotify-text-gradient", // Aplica o gradiente em todos os modos
+              "dark:text-white", // Dark mode
+              "spotify:text-white" // Spotify mode
+            )}>
+              Despesas
+            </h1>
+            <p className={cn(
+              "text-muted-foreground", // Light mode
+              "dark:text-spotify-light-gray", // Dark mode
+              "spotify:text-spotify-light-gray" // Spotify mode
+            )}>
+              Gerencie suas despesas e pagamentos
+            </p>
           </div>
           <ExpenseForm
             onSave={handleCreateExpense}
@@ -380,20 +394,19 @@ export default function ExpensesPage() {
         </div>
 
         {/* Resumo Mensal - Design Melhorado */}
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
-          <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+        <Card className="spotify-hover">
+          <CardHeader>
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-sm">
                 <Calendar className="h-4 w-4 text-blue-500 dark:text-blue-400" />
                 Resumo do Mês
-              </h3>
+              </CardTitle>
               <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full">
                 {monthlyStats.totalExpenses} despesa{monthlyStats.totalExpenses !== 1 ? 's' : ''}
               </span>
             </div>
-          </div>
-          
-          <div className="p-4">
+          </CardHeader>
+          <CardContent>
             <div className="grid grid-cols-4 gap-4">
               <div className="text-center">
                 <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Total</div>
@@ -412,11 +425,11 @@ export default function ExpensesPage() {
                 <div className="text-xl font-bold text-blue-600 dark:text-blue-400">{Math.round(monthlyStats.paymentProgress)}%</div>
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
-          <div className="p-4 pb-2">
+        <Card className="spotify-hover">
+          <CardHeader>
             <div className="flex items-center gap-3 flex-wrap">
               {/* Filtros na ordem solicitada */}
               <div className="flex gap-1.5">
@@ -499,8 +512,8 @@ export default function ExpensesPage() {
                 </Button>
               )}
             </div>
-          </div>
-          <div className="px-4">
+          </CardHeader>
+          <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -643,8 +656,8 @@ export default function ExpensesPage() {
                 : "Nenhuma despesa cadastrada"}
             </div>
           )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
 
       </div>
@@ -652,24 +665,33 @@ export default function ExpensesPage() {
       {/* Modal de Detalhes da Despesa */}
       {selectedExpense && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-gray-700">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Detalhes da Despesa</h2>
+          <div className="bg-background rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto border shadow-xl">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className={cn(
+                "text-xl font-semibold",
+                "spotify-text-gradient", // Light mode
+                "dark:text-white", // Dark mode
+                "spotify:text-white" // Spotify mode
+              )}>
+                Detalhes da Despesa
+              </h2>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setSelectedExpense(null)}
+                className="spotify-hover"
               >
                 ✕
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Informações da Despesa */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Informações da Despesa</CardTitle>
-                </CardHeader>
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Informações da Despesa */}
+                <Card className="spotify-hover">
+                  <CardHeader>
+                    <CardTitle>Informações da Despesa</CardTitle>
+                  </CardHeader>
                 <CardContent className="space-y-3">
                   <div>
                     <span className="font-medium">Descrição:</span>
@@ -705,11 +727,11 @@ export default function ExpensesPage() {
                 </CardContent>
               </Card>
 
-              {/* Status do Pagamento */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Status do Pagamento</CardTitle>
-                </CardHeader>
+                {/* Status do Pagamento */}
+                <Card className="spotify-hover">
+                  <CardHeader>
+                    <CardTitle>Status do Pagamento</CardTitle>
+                  </CardHeader>
                 <CardContent className="space-y-3">
                   {(() => {
                     const status = calculateExpenseStatus(selectedExpense);
@@ -755,10 +777,10 @@ export default function ExpensesPage() {
                   })()}
                 </CardContent>
               </Card>
-            </div>
+              </div>
 
-            {/* Ações */}
-            <div className="flex justify-end gap-2 mt-6">
+              {/* Ações */}
+              <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setSelectedExpense(null)}>
                 Fechar
               </Button>
@@ -780,6 +802,7 @@ export default function ExpensesPage() {
                   )}
                 </Button>
               )}
+              </div>
             </div>
           </div>
         </div>
@@ -788,7 +811,7 @@ export default function ExpensesPage() {
       {/* Modal de Confirmação de Exclusão */}
       {deletingExpense && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4 border border-gray-200 dark:border-gray-700">
+          <div className="bg-background rounded-lg p-6 max-w-md w-full mx-4 border shadow-xl">
             <div className="flex items-center mb-4">
               <div className="flex-shrink-0 w-10 h-10 mx-auto bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
                 <Trash2 className="h-6 w-6 text-red-600 dark:text-red-400" />

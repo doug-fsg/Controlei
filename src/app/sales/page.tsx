@@ -369,11 +369,11 @@ export default function SalesPage() {
           />
         </div>
 
-        {/* Resumo Mensal - Estilo similar ao Expenses */}
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
-          <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+        {/* Resumo Mensal  */}
+        <Card className="spotify-hover">
+          <CardHeader>
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-sm">
                 <ShoppingCart className={cn(
                   "h-4 w-4",
                   "text-spotify-green-light", // Light mode
@@ -381,14 +381,13 @@ export default function SalesPage() {
                   "spotify:text-spotify-green" // Spotify mode
                 )} />
                 Resumo do Mês
-              </h3>
+              </CardTitle>
               <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full">
                 {monthlyStats.totalSales} venda{monthlyStats.totalSales !== 1 ? 's' : ''}
               </span>
             </div>
-          </div>
-          
-          <div className="p-4">
+          </CardHeader>
+          <CardContent>
             <div className="grid grid-cols-4 gap-4">
               <div className="text-center">
                 <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Total</div>
@@ -414,13 +413,13 @@ export default function SalesPage() {
                 <div className="text-xl font-bold text-blue-600 dark:text-blue-400">{Math.round(monthlyStats.paymentProgress)}%</div>
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
-          <div className="p-4 pb-2">
+        <Card className="spotify-hover">
+          <CardHeader>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Lista de Vendas</h3>
+              <CardTitle className="text-lg font-semibold">Lista de Vendas</CardTitle>
             </div>
             
             {/* Busca integrada e sutil - estilo expenses */}
@@ -468,8 +467,8 @@ export default function SalesPage() {
               </Select>
 
             </div>
-          </div>
-          <div className="px-4">
+          </CardHeader>
+          <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -604,14 +603,14 @@ export default function SalesPage() {
                 {searchTerm ? "Nenhuma venda encontrada com os filtros aplicados" : "Nenhuma venda cadastrada"}
               </div>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
                 {/* Recebimentos - Estilo similar ao Expenses */}
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm">
-          <div className="p-4 border-b border-gray-100 dark:border-gray-700">
+        <Card className="spotify-hover">
+          <CardHeader>
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-sm">
                 <Calendar className={cn(
                   "h-4 w-4",
                   "text-spotify-green-light", // Light mode
@@ -619,10 +618,10 @@ export default function SalesPage() {
                   "spotify:text-spotify-green" // Spotify mode
                 )} />
                 Recebimentos pendentes
-              </h3>
+              </CardTitle>
             </div>
-          </div>
-          <div className="px-4">
+          </CardHeader>
+          <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
@@ -692,16 +691,15 @@ export default function SalesPage() {
                     )}
               </TableBody>
             </Table>
- 
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Modal de Detalhes da Venda */}
       {selectedSale && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-gray-700 shadow-xl">
-            <div className="flex justify-between items-center mb-4">
+          <div className="bg-background rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto border shadow-xl">
+            <div className="flex justify-between items-center mb-6">
               <h2 className={cn(
                 "text-xl font-semibold",
                 "spotify-text-gradient", // Light mode
@@ -720,209 +718,189 @@ export default function SalesPage() {
               </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Informações da Venda */}
-              <Card className={cn(
-                "bg-white border-gray-200", // Light mode - fundo branco sólido
-                "dark:spotify-card", // Dark mode - usa spotify-card
-                "spotify:spotify-card" // Spotify mode - usa spotify-card
-              )}>
-                <CardHeader>
-                  <CardTitle className={cn(
-                    "text-gray-900", // Light mode - preto
-                    "dark:text-white", // Dark mode - branco
-                    "spotify:text-white" // Spotify mode - branco
-                  )}>
-                    Informações da Venda
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div>
-                    <span className="font-medium">Cliente:</span>
-                    <p>{selectedSale.client?.name || "Cliente não encontrado"}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium">Valor Total:</span>
-                    <p className="font-semibold">{formatCurrency(selectedSale.totalAmount)}</p>
-                  </div>
-                  <div>
-                    <span className="font-medium">Data da Venda:</span>
-                    <p>{formatDate(selectedSale.saleDate)}</p>
-                  </div>
-                  {selectedSale.notes && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Informações da Venda */}
+                <Card className="spotify-hover">
+                  <CardHeader>
+                    <CardTitle>Informações da Venda</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
                     <div>
-                      <span className="font-medium">Observações:</span>
-                      <p>{selectedSale.notes}</p>
+                      <span className="font-medium">Cliente:</span>
+                      <p>{selectedSale.client?.name || "Cliente não encontrado"}</p>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
+                    <div>
+                      <span className="font-medium">Valor Total:</span>
+                      <p className="font-semibold">{formatCurrency(selectedSale.totalAmount)}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium">Data da Venda:</span>
+                      <p>{formatDate(selectedSale.saleDate)}</p>
+                    </div>
+                    {selectedSale.notes && (
+                      <div>
+                        <span className="font-medium">Observações:</span>
+                        <p>{selectedSale.notes}</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
 
-              {/* Status do Pagamento */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className={cn(
-                    "text-gray-900", // Light mode - preto
-                    "dark:text-white", // Dark mode - branco
-                    "spotify:text-white" // Spotify mode - branco
-                  )}>
-                    Status do Pagamento
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {(() => {
-                    const status = calculateSaleStatus(selectedSale);
-                    return (
-                      <>
-                        <div>
-                          <span className="font-medium">Valor Pago:</span>
-                          <p className={cn(
-                            "font-semibold",
-                            "text-spotify-green-light", // Light mode
-                            "dark:text-spotify-green", // Dark mode
-                            "spotify:text-spotify-green" // Spotify mode
-                          )}>
-                            {formatCurrency(status.totalPaid)}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="font-medium">Valor Pendente:</span>
-                          <p className="text-red-600 dark:text-red-400 font-semibold">{formatCurrency(status.totalPending)}</p>
-                        </div>
-                        <div>
-                          <span className="font-medium">Progresso:</span>
-                          <div className="flex items-center space-x-2">
-                            <div className="w-32 bg-gray-200 dark:bg-gray-600 rounded-full h-2 overflow-hidden">
-                              <div
-                                className={cn(
-                                  "h-2 rounded-full transition-all duration-300",
-                                  status.isFullyPaid 
-                                    ? "bg-spotify-green-light dark:bg-spotify-green spotify:bg-spotify-green"
-                                    : "bg-blue-600 dark:bg-blue-500"
-                                )}
-                                style={{ width: `${status.progress}%` }}
-                              />
-                            </div>
-                            <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">
-                              {Math.round(status.progress)}%
-                            </span>
+                {/* Status do Pagamento */}
+                <Card className="spotify-hover">
+                  <CardHeader>
+                    <CardTitle>Status do Pagamento</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {(() => {
+                      const status = calculateSaleStatus(selectedSale);
+                      return (
+                        <>
+                          <div>
+                            <span className="font-medium">Valor Pago:</span>
+                            <p className={cn(
+                              "font-semibold",
+                              "text-spotify-green-light", // Light mode
+                              "dark:text-spotify-green", // Dark mode
+                              "spotify:text-spotify-green" // Spotify mode
+                            )}>
+                              {formatCurrency(status.totalPaid)}
+                            </p>
                           </div>
-                        </div>
-                        <div>
-                          <span className="font-medium">Status:</span>
-                          <Badge 
-                            variant={status.isFullyPaid ? "default" : "secondary"}
-                            className={status.isFullyPaid ? cn(
-                              "bg-spotify-green-light text-white border-spotify-green-light", // Light mode
-                              "dark:bg-spotify-green dark:text-spotify-black dark:border-spotify-green", // Dark mode
-                              "spotify:bg-spotify-green spotify:text-spotify-black spotify:border-spotify-green" // Spotify mode
-                            ) : ""}
-                          >
-                            {status.isFullyPaid ? "Pago" : "Pendente"}
-                          </Badge>
-                        </div>
-                      </>
-                    );
-                  })()}
+                          <div>
+                            <span className="font-medium">Valor Pendente:</span>
+                            <p className="text-red-600 dark:text-red-400 font-semibold">{formatCurrency(status.totalPending)}</p>
+                          </div>
+                          <div>
+                            <span className="font-medium">Progresso:</span>
+                            <div className="flex items-center space-x-2">
+                              <div className="w-32 bg-gray-200 dark:bg-gray-600 rounded-full h-2 overflow-hidden">
+                                <div
+                                  className={cn(
+                                    "h-2 rounded-full transition-all duration-300",
+                                    status.isFullyPaid 
+                                      ? "bg-spotify-green-light dark:bg-spotify-green spotify:bg-spotify-green"
+                                      : "bg-blue-600 dark:bg-blue-500"
+                                  )}
+                                  style={{ width: `${status.progress}%` }}
+                                />
+                              </div>
+                              <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+                                {Math.round(status.progress)}%
+                              </span>
+                            </div>
+                          </div>
+                          <div>
+                            <span className="font-medium">Status:</span>
+                            <Badge 
+                              variant={status.isFullyPaid ? "default" : "secondary"}
+                              className={status.isFullyPaid ? cn(
+                                "bg-spotify-green-light text-white border-spotify-green-light", // Light mode
+                                "dark:bg-spotify-green dark:text-spotify-black dark:border-spotify-green", // Dark mode
+                                "spotify:bg-spotify-green spotify:text-spotify-black spotify:border-spotify-green" // Spotify mode
+                              ) : ""}
+                            >
+                              {status.isFullyPaid ? "Pago" : "Pendente"}
+                            </Badge>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Lista de Pagamentos */}
+              <Card className="spotify-hover">
+                <CardHeader>
+                  <CardTitle>Pagamentos</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Valor</TableHead>
+                        <TableHead>Data de Vencimento</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Data de Pagamento</TableHead>
+                        <TableHead>Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {selectedSale.payments.map((payment: SalePayment) => (
+                        <TableRow key={payment.id} className="spotify-hover">
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {payment.type === 'ADVANCE' ? 'Entrada' : 'Parcela'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="font-semibold">{formatCurrency(payment.amount)}</TableCell>
+                          <TableCell>
+                            <span className="text-sm text-gray-500 dark:text-gray-400">
+                              {formatDate(payment.dueDate)}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant={payment.status === 'PAID' ? "default" : "secondary"}
+                              className={payment.status === 'PAID' ? cn(
+                                "bg-spotify-green-light text-white border-spotify-green-light", // Light mode
+                                "dark:bg-spotify-green dark:text-spotify-black dark:border-spotify-green", // Dark mode
+                                "spotify:bg-spotify-green spotify:text-spotify-black spotify:border-spotify-green" // Spotify mode
+                              ) : ""}
+                            >
+                              {payment.status === 'PAID' ? 'Pago' : 'Pendente'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-gray-500 dark:text-gray-400">
+                            {payment.paidDate ? formatDate(payment.paidDate) : '-'}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex space-x-2">
+                              {payment.status === 'PENDING' ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => markPaymentAsPaid(selectedSale.id.toString(), payment.id)}
+                                  disabled={markPaymentMutation.isPending}
+                                  className="spotify-hover"
+                                >
+                                  {markPaymentMutation.isPending ? (
+                                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                  ) : (
+                                    <CheckCircle className="h-4 w-4 mr-1" />
+                                  )}
+                                  Marcar como Pago
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => markPaymentAsPending(payment.id)}
+                                  disabled={markPaymentAsPendingMutation.isPending}
+                                  className="text-orange-600 hover:text-orange-700 spotify-hover"
+                                >
+                                  {markPaymentAsPendingMutation.isPending ? (
+                                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                  ) : (
+                                    <Undo2 className="h-4 w-4 mr-1" />
+                                  )}
+                                  Desfazer Pagamento
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </CardContent>
               </Card>
             </div>
-
-            {/* Lista de Pagamentos */}
-            <Card className="mt-6">
-              <CardHeader>
-                <CardTitle className={cn(
-                  "text-gray-900", // Light mode - preto
-                  "dark:text-white", // Dark mode - branco
-                  "spotify:text-white" // Spotify mode - branco
-                )}>
-                  Pagamentos
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Valor</TableHead>
-                      <TableHead>Data de Vencimento</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Data de Pagamento</TableHead>
-                      <TableHead>Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {selectedSale.payments.map((payment: SalePayment) => (
-                      <TableRow key={payment.id} className="spotify-hover">
-                        <TableCell>
-                          <Badge variant="outline" className="text-xs">
-                            {payment.type === 'ADVANCE' ? 'Entrada' : 'Parcela'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="font-semibold">{formatCurrency(payment.amount)}</TableCell>
-                        <TableCell>
-                          <span className="text-sm text-gray-500 dark:text-gray-400">
-                            {formatDate(payment.dueDate)}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant={payment.status === 'PAID' ? "default" : "secondary"}
-                            className={payment.status === 'PAID' ? cn(
-                              "bg-spotify-green-light text-white border-spotify-green-light", // Light mode
-                              "dark:bg-spotify-green dark:text-spotify-black dark:border-spotify-green", // Dark mode
-                              "spotify:bg-spotify-green spotify:text-spotify-black spotify:border-spotify-green" // Spotify mode
-                            ) : ""}
-                          >
-                            {payment.status === 'PAID' ? 'Pago' : 'Pendente'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm text-gray-500 dark:text-gray-400">
-                          {payment.paidDate ? formatDate(payment.paidDate) : '-'}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            {payment.status === 'PENDING' ? (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => markPaymentAsPaid(selectedSale.id.toString(), payment.id)}
-                                disabled={markPaymentMutation.isPending}
-                                className="spotify-hover"
-                              >
-                                {markPaymentMutation.isPending ? (
-                                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                                ) : (
-                                  <CheckCircle className="h-4 w-4 mr-1" />
-                                )}
-                                Marcar como Pago
-                              </Button>
-                            ) : (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => markPaymentAsPending(payment.id)}
-                                disabled={markPaymentAsPendingMutation.isPending}
-                                className="text-orange-600 hover:text-orange-700 spotify-hover"
-                              >
-                                {markPaymentAsPendingMutation.isPending ? (
-                                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                                ) : (
-                                  <Undo2 className="h-4 w-4 mr-1" />
-                                )}
-                                Desfazer Pagamento
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
           </div>
         </div>
       )}

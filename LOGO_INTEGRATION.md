@@ -109,3 +109,4 @@
 
 **A integração foi feita de forma cautelosa, mantendo toda a funcionalidade existente e adicionando apenas os elementos visuais necessários!** ✨
 
+

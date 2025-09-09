@@ -65,77 +65,6 @@ async function main() {
 
   console.log('🔗 Usuário associado à organização')
 
-  // Criar clientes únicos dos dados fornecidos
-  const clientNames = [
-    'CLEINE DE FREITAS ARAUJO TAVARES',
-    'APAE URUGUAIANA',
-    'ALAMIR MOURA',
-    'PAMPA GARDEN',
-    'DAIANEBARBO COSTA',
-    'CRISTINA JARDIM RIBEIRO',
-    'CLOVES BORGES GOMES',
-    'CARLOS ALBERT0 VIVIANE MARQUES',
-    'ANDREIA BENITES MELO',
-    'ANDERSON LUIS CRISTIANE',
-    'DELFINO PRESTES DA SILVA',
-    'DOUGLAS PEREIRA',
-    'EDER FERNANDO BICCA',
-    'EDSON GILMAR',
-    'FABIANO DE MOURA',
-    'ELIAS DA SILVA JUNIOR',
-    'DAIANE BARBO COSTA',
-    'MARLEIZA BISSACO DA SILVEIRA',
-    'MAYSA LUCIANE RIBEIRO',
-    'ELAINE DIAS PEREIRA DORNELES',
-    'EDUARDO BULDAIN D ORNELLAS',
-    'MARCELO ROSAMAR NUNES DE ARAUJO',
-    'JOSE NEWTON DE FREITAS BETTEGA',
-    'ANA PAULA RIBEIRO LUNARDINI',
-    'ROSECLAIRE MOLINA',
-    'CLAUDEMIR FERREIRA SOUTO',
-    'AMANDA CONTI JACQUES',
-    'DIONATHA SISNEI DA ROSA',
-    'MICHELLE FAGUNDES',
-    'PROFIT SANTO INACIO',
-    'PADARIA VO CHICA',
-    'EDER FERNANDO BICCA BORDÃO',
-    'SIMONI MARIZETE TITO MONTEIRO',
-    'GIANNE BENITES CATILLO',
-    'VOLMIR JOSE TONIETO',
-    'LUDMILA DOS SANTOS ROBLES',
-    'JONATHAN DA SILVEIRA DA SILVA',
-    'RAMON ANTONIO RAFFIN',
-    'GISLAINE TSCHINKEL RODRIGUES',
-    'EDGAR COLOMBO ELVINO DA SILVA',
-    'PANARIUS DISTRIBUIDORA LTDA',
-    'IEDA MADEIRA SALGADO',
-    'JORGE LUIS BITTENCOURT MONTEIRO'
-  ]
-
-  // Criar clientes com datas baseadas nas vendas
-  const clients = []
-  for (let i = 0; i < clientNames.length; i++) {
-    const name = clientNames[i]
-    // Encontrar a primeira venda deste cliente para usar como data de criação
-    const firstSale = paymentData.find(p => p.clientName === name)
-    const createdAt = firstSale ? parseBrazilianDate(firstSale.saleDate) : new Date()
-    
-    const client = await prisma.client.upsert({
-      where: { id: i + 1 },
-      update: {},
-      create: {
-        id: i + 1,
-        name: name,
-        userId: user.id,
-        organizationId: organization.id,
-        createdAt: createdAt,
-      },
-    })
-    clients.push(client)
-  }
-
-  console.log('👥 Clientes criados:', clients.length)
-
   // Dados dos pagamentos organizados por cliente
   const paymentData = [
     // CLEINE DE FREITAS ARAUJO TAVARES - 11 parcelas de R$ 1.000,00
@@ -893,6 +822,77 @@ async function main() {
       ]
     },
   ]
+
+  // Criar clientes únicos dos dados fornecidos
+  const clientNames = [
+    'CLEINE DE FREITAS ARAUJO TAVARES',
+    'APAE URUGUAIANA',
+    'ALAMIR MOURA',
+    'PAMPA GARDEN',
+    'DAIANEBARBO COSTA',
+    'CRISTINA JARDIM RIBEIRO',
+    'CLOVES BORGES GOMES',
+    'CARLOS ALBERT0 VIVIANE MARQUES',
+    'ANDREIA BENITES MELO',
+    'ANDERSON LUIS CRISTIANE',
+    'DELFINO PRESTES DA SILVA',
+    'DOUGLAS PEREIRA',
+    'EDER FERNANDO BICCA',
+    'EDSON GILMAR',
+    'FABIANO DE MOURA',
+    'ELIAS DA SILVA JUNIOR',
+    'DAIANE BARBO COSTA',
+    'MARLEIZA BISSACO DA SILVEIRA',
+    'MAYSA LUCIANE RIBEIRO',
+    'ELAINE DIAS PEREIRA DORNELES',
+    'EDUARDO BULDAIN D ORNELLAS',
+    'MARCELO ROSAMAR NUNES DE ARAUJO',
+    'JOSE NEWTON DE FREITAS BETTEGA',
+    'ANA PAULA RIBEIRO LUNARDINI',
+    'ROSECLAIRE MOLINA',
+    'CLAUDEMIR FERREIRA SOUTO',
+    'AMANDA CONTI JACQUES',
+    'DIONATHA SISNEI DA ROSA',
+    'MICHELLE FAGUNDES',
+    'PROFIT SANTO INACIO',
+    'PADARIA VO CHICA',
+    'EDER FERNANDO BICCA BORDÃO',
+    'SIMONI MARIZETE TITO MONTEIRO',
+    'GIANNE BENITES CATILLO',
+    'VOLMIR JOSE TONIETO',
+    'LUDMILA DOS SANTOS ROBLES',
+    'JONATHAN DA SILVEIRA DA SILVA',
+    'RAMON ANTONIO RAFFIN',
+    'GISLAINE TSCHINKEL RODRIGUES',
+    'EDGAR COLOMBO ELVINO DA SILVA',
+    'PANARIUS DISTRIBUIDORA LTDA',
+    'IEDA MADEIRA SALGADO',
+    'JORGE LUIS BITTENCOURT MONTEIRO'
+  ]
+
+  // Criar clientes com datas baseadas nas vendas
+  const clients = []
+  for (let i = 0; i < clientNames.length; i++) {
+    const name = clientNames[i]
+    // Encontrar a primeira venda deste cliente para usar como data de criação
+    const firstSale = paymentData.find(p => p.clientName === name)
+    const createdAt = firstSale ? parseBrazilianDate(firstSale.saleDate) : new Date()
+    
+    const client = await prisma.client.upsert({
+      where: { id: i + 1 },
+      update: {},
+      create: {
+        id: i + 1,
+        name: name,
+        userId: user.id,
+        organizationId: organization.id,
+        createdAt: createdAt,
+      },
+    })
+    clients.push(client)
+  }
+
+  console.log('👥 Clientes criados:', clients.length)
 
   // Criar vendas e pagamentos
   let saleId = 1

@@ -39,7 +39,7 @@ async function main() {
   console.log('👤 Usuário encontrado:', user.email)
   console.log('🏢 Organização encontrada:', organization.name)
 
-  // Criar categorias de despesas únicas
+  // Buscar ou criar categorias de despesas
   const categoryNames = [
     'Projetos',
     'Veículos', 
@@ -48,25 +48,25 @@ async function main() {
     'Colaboradores'
   ]
 
-  const categories = await Promise.all(
-    categoryNames.map((name, index) => 
-      prisma.expenseCategory.upsert({
-        where: { 
-          name_userId: {
-            name: name,
-            userId: user.id
-          }
-        },
-        update: {},
-        create: {
+  const categories = []
+  for (const name of categoryNames) {
+    const category = await prisma.expenseCategory.upsert({
+      where: { 
+        name_userId: {
           name: name,
-          description: `Categoria ${name}`,
-          userId: user.id,
-          organizationId: organization.id,
-        },
-      })
-    )
-  )
+          userId: user.id
+        }
+      },
+      update: {},
+      create: {
+        name: name,
+        description: `Categoria ${name}`,
+        userId: user.id,
+        organizationId: organization.id,
+      },
+    })
+    categories.push(category)
+  }
 
   console.log('📂 Categorias de despesas criadas:', categories.length)
 

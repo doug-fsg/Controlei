@@ -925,8 +925,8 @@ async function main() {
   }
 
   console.log('✅ Seed com dados financeiros concluído!')
-  console.log(`📊 Total de vendas criadas: ${saleId - 1}`)
-  console.log(`💳 Total de pagamentos criados: ${paymentId - 1}`)
+  console.log(`📊 Total de vendas criadas: ${paymentData.length}`)
+  console.log(`💳 Total de clientes criados: ${clients.length}`)
 }
 
 main()

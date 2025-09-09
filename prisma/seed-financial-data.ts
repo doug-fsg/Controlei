@@ -24,7 +24,6 @@ async function main() {
     where: { email: 'dev@sistema.com' },
     update: {},
     create: {
-      id: 1,
       email: 'dev@sistema.com',
       name: 'Usuário de Desenvolvimento',
       password: hashedPassword,
@@ -35,10 +34,9 @@ async function main() {
 
   // Criar organização
   const organization = await prisma.organization.upsert({
-    where: { id: 1 },
+    where: { slug: 'empresa-principal' },
     update: {},
     create: {
-      id: 1,
       name: 'Empresa Principal',
       slug: 'empresa-principal',
     },
@@ -872,17 +870,13 @@ async function main() {
 
   // Criar clientes com datas baseadas nas vendas
   const clients = []
-  for (let i = 0; i < clientNames.length; i++) {
-    const name = clientNames[i]
+  for (const name of clientNames) {
     // Encontrar a primeira venda deste cliente para usar como data de criação
     const firstSale = paymentData.find(p => p.clientName === name)
     const createdAt = firstSale ? parseBrazilianDate(firstSale.saleDate) : new Date()
     
-    const client = await prisma.client.upsert({
-      where: { id: i + 1 },
-      update: {},
-      create: {
-        id: i + 1,
+    const client = await prisma.client.create({
+      data: {
         name: name,
         userId: user.id,
         organizationId: organization.id,
@@ -895,9 +889,6 @@ async function main() {
   console.log('👥 Clientes criados:', clients.length)
 
   // Criar vendas e pagamentos
-  let saleId = 1
-  let paymentId = 1
-
   for (const saleData of paymentData) {
     const client = clients.find(c => c.name === saleData.clientName)
     if (!client) continue
@@ -905,7 +896,6 @@ async function main() {
     // Criar venda
     const sale = await prisma.sale.create({
       data: {
-        id: saleId++,
         clientId: client.id,
         totalAmount: saleData.totalAmount,
         saleDate: parseBrazilianDate(saleData.saleDate),
@@ -919,7 +909,6 @@ async function main() {
     for (const payment of saleData.payments) {
       await prisma.salePayment.create({
         data: {
-          id: paymentId++,
           saleId: sale.id,
           type: payment.type as 'ADVANCE' | 'INSTALLMENT',
           amount: payment.amount,

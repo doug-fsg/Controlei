@@ -28,7 +28,7 @@ async function main() {
   }
 
   const organization = await prisma.organization.findUnique({
-    where: { id: 1 }
+    where: { slug: 'empresa-principal' }
   })
 
   if (!organization) {
@@ -256,7 +256,6 @@ async function main() {
   console.log('📊 Criando despesas...')
 
   // Criar despesas
-  let expenseId = 1
   for (const expenseData of expensesData) {
     const category = categories.find(c => c.name === expenseData.category)
     if (!category) {
@@ -266,7 +265,6 @@ async function main() {
 
     await prisma.expense.create({
       data: {
-        id: expenseId++,
         amount: parseBrazilianCurrency(expenseData.amount),
         description: expenseData.description || 'Sem descrição',
         dueDate: parseBrazilianDate(expenseData.date),

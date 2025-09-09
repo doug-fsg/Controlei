@@ -13,7 +13,6 @@ async function main() {
     where: { email: 'dev@sistema.com' },
     update: {},
     create: {
-      id: 1,
       email: 'dev@sistema.com',
       name: 'Usuário de Desenvolvimento',
       password: hashedPassword,
@@ -24,10 +23,9 @@ async function main() {
 
   // Criar organização
   const organization = await prisma.organization.upsert({
-    where: { id: 1 },
+    where: { slug: 'empresa-principal' },
     update: {},
     create: {
-      id: 1,
       name: 'Empresa Principal',
       slug: 'empresa-principal',
     },
@@ -57,10 +55,14 @@ async function main() {
   // Criar categorias de exemplo
   const categories = await Promise.all([
     prisma.expenseCategory.upsert({
-      where: { id: 1 },
+      where: { 
+        name_userId: {
+          name: 'Projetos',
+          userId: user.id
+        }
+      },
       update: {},
       create: {
-        id: 1,
         name: 'Projetos',
         description: 'Despesas relacionadas a projetos',
         userId: user.id,
@@ -68,10 +70,14 @@ async function main() {
       },
     }),
     prisma.expenseCategory.upsert({
-      where: { id: 2 },
+      where: { 
+        name_userId: {
+          name: 'Fornecedores',
+          userId: user.id
+        }
+      },
       update: {},
       create: {
-        id: 2,
         name: 'Fornecedores',
         description: 'Pagamentos a fornecedores',
         userId: user.id,
@@ -79,10 +85,14 @@ async function main() {
       },
     }),
     prisma.expenseCategory.upsert({
-      where: { id: 3 },
+      where: { 
+        name_userId: {
+          name: 'Funcionários',
+          userId: user.id
+        }
+      },
       update: {},
       create: {
-        id: 3,
         name: 'Funcionários',
         description: 'Salários e benefícios',
         userId: user.id,
@@ -95,11 +105,8 @@ async function main() {
 
   // Criar clientes de exemplo
   const clients = await Promise.all([
-    prisma.client.upsert({
-      where: { id: 1 },
-      update: {},
-      create: {
-        id: 1,
+    prisma.client.create({
+      data: {
         name: 'João Silva',
         email: 'joao@email.com',
         phone: '(11) 99999-9999',
@@ -108,11 +115,8 @@ async function main() {
         organizationId: organization.id,
       },
     }),
-    prisma.client.upsert({
-      where: { id: 2 },
-      update: {},
-      create: {
-        id: 2,
+    prisma.client.create({
+      data: {
         name: 'Maria Santos',
         email: 'maria@email.com',
         phone: '(11) 88888-8888',

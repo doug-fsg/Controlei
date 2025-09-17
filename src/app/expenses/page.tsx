@@ -20,18 +20,25 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, CheckCircle, Loader2, Eye, Edit, Trash2, MoreVertical, Calendar, Filter, TrendingUp, TrendingDown } from "lucide-react";
+import { Plus, Search, CheckCircle, Loader2, Eye, Edit, Trash2, MoreVertical, Calendar, Filter, TrendingUp, TrendingDown, Settings, X, Undo2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import ExpenseForm from "@/components/expenses/ExpenseForm";
+import EditExpenseForm from "@/components/expenses/EditExpenseForm";
 import { Expense, CreateExpenseData, ExpenseCategory } from "@/types";
-import { useExpenses, useCreateExpense, useMarkExpenseAsPaid, useDeleteExpense, usePayRecurringExpense, useRecurringPayments } from "@/hooks/useExpenses";
+import { useExpenses, useCreateExpense, useMarkExpenseAsPaid, useMarkExpenseAsPending, useDeleteExpense, useEditExpense, usePayRecurringExpense, useRecurringPayments } from "@/hooks/useExpenses";
 import { useCategories } from "@/hooks/useCategories";
 
 
@@ -41,6 +48,11 @@ export default function ExpensesPage() {
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [deletingExpense, setDeletingExpense] = useState<Expense | null>(null);
+  const [showExpenseManager, setShowExpenseManager] = useState(false);
+  
+  // Estados para filtros do modal de gerenciamento
+  const [managerSearchTerm, setManagerSearchTerm] = useState("");
+  const [managerSelectedCategory, setManagerSelectedCategory] = useState<string>("");
   
   // Estados para filtros (começam vazios para mostrar placeholders)
   const [selectedCategory, setSelectedCategory] = useState<string>("");
@@ -53,7 +65,9 @@ export default function ExpensesPage() {
   const { data: recurringPayments = [] } = useRecurringPayments();
   const createExpenseMutation = useCreateExpense();
   const markExpenseAsPaidMutation = useMarkExpenseAsPaid();
+  const markExpenseAsPendingMutation = useMarkExpenseAsPending();
   const deleteExpenseMutation = useDeleteExpense();
+  const editExpenseMutation = useEditExpense();
   const payRecurringExpenseMutation = usePayRecurringExpense();
 
   // Função para gerar ocorrências virtuais de despesas recorrentes
@@ -210,6 +224,32 @@ export default function ExpensesPage() {
     });
   }, [expenses, recurringPayments, searchTerm, selectedCategory, selectedStatus, selectedPeriod]);
 
+  // Filtros para o modal de gerenciamento (apenas despesas reais, não virtuais)
+  const filteredManagerExpenses = useMemo(() => {
+    if (!expenses || !Array.isArray(expenses)) {
+      return [];
+    }
+    
+    return expenses.filter(expense => {
+      // Apenas despesas reais (não virtuais/geradas)
+      if (expense.id > 1000) return false;
+      
+      // Filtro de busca por texto
+      const matchesSearch = managerSearchTerm === "" || 
+        expense.description.toLowerCase().includes(managerSearchTerm.toLowerCase()) ||
+        (expense.notes && expense.notes.toLowerCase().includes(managerSearchTerm.toLowerCase()));
+      
+      // Filtro por categoria
+      const matchesCategory = managerSelectedCategory === "" || managerSelectedCategory === "all" || 
+        (expense.categories && expense.categories.includes(managerSelectedCategory));
+      
+      return matchesSearch && matchesCategory;
+    }).sort((a, b) => {
+      // Ordenar por data de criação (mais recentes primeiro)
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  }, [expenses, managerSearchTerm, managerSelectedCategory]);
+
   // Cálculos do resumo mensal
   const monthlyStats = useMemo(() => {
     // Garantir que expenses é um array válido
@@ -299,18 +339,92 @@ export default function ExpensesPage() {
         // Despesa normal, usar API padrão
         await markExpenseAsPaidMutation.mutateAsync(expense.id);
       }
+      
+      // Atualizar o selectedExpense se for o mesmo
+      if (selectedExpense && selectedExpense.id === expense.id) {
+        const updatedExpense = { 
+          ...expense, 
+          status: 'PAID' as const, 
+          paidAt: new Date(),
+          paidAmount: expense.amount // Marcar como totalmente pago
+        };
+        setSelectedExpense(updatedExpense);
+      }
     } catch (error) {
       console.error('Erro ao marcar como pago:', error);
     }
   };
 
+  const handleMarkAsPending = async (expense: Expense) => {
+    try {
+      // Apenas despesas normais podem ser desmarcadas (não virtuais)
+      if (expense.id > 1000) {
+        alert('Não é possível desfazer pagamento de despesas recorrentes virtuais.');
+        return;
+      }
+      
+      await markExpenseAsPendingMutation.mutateAsync(expense.id);
+      
+      // Atualizar o selectedExpense se for o mesmo
+      if (selectedExpense && selectedExpense.id === expense.id) {
+        const updatedExpense = { 
+          ...expense, 
+          status: 'PENDING' as const, 
+          paidAt: undefined,
+          paidAmount: 0 // Marcar como não pago
+        };
+        setSelectedExpense(updatedExpense);
+      }
+    } catch (error) {
+      console.error('Erro ao desfazer pagamento:', error);
+    }
+  };
+
   const handleEditExpense = (expense: Expense) => {
+    // Verificar se é uma despesa única (pode ser editada)
+    if (expense.isRecurring || expense.installments) {
+      alert('Apenas despesas únicas podem ser editadas. Para despesas parceladas ou recorrentes, crie uma nova despesa e exclua a anterior.');
+      return;
+    }
+    
     setEditingExpense(expense);
-    // TODO: Implementar modal de edição
-    alert('Funcionalidade de edição será implementada em breve!');
+  };
+
+  const handleSaveEdit = async (data: {
+    description: string;
+    amount: number;
+    dueDate: string;
+    categoryId: number;
+    notes?: string;
+  }) => {
+    if (!editingExpense) return;
+    
+    try {
+      await editExpenseMutation.mutateAsync({
+        expenseId: editingExpense.id,
+        data
+      });
+      setEditingExpense(null);
+    } catch (error) {
+      console.error('Erro ao editar despesa:', error);
+    }
   };
 
   const handleDeleteExpense = (expense: Expense) => {
+    // Se for uma despesa recorrente virtual, mostrar aviso específico
+    if (expense.id > 1000) {
+      const realExpenseId = Math.floor(expense.id / 1000);
+      const originalExpense = expenses.find(e => e.id === realExpenseId);
+      
+      if (originalExpense) {
+        if (confirm(`Esta é uma ocorrência de uma despesa recorrente.\n\nDeseja excluir:\n1. Apenas esta ocorrência? (Clique "Cancelar" e marque como paga)\n2. Toda a despesa recorrente "${originalExpense.description}"? (Clique "OK")`)) {
+          // Usuário quer excluir toda a despesa recorrente
+          setDeletingExpense(originalExpense);
+        }
+        return;
+      }
+    }
+    
     setDeletingExpense(expense);
   };
 
@@ -318,6 +432,7 @@ export default function ExpensesPage() {
     if (!deletingExpense) return;
     
     try {
+      // Agora deletingExpense sempre será a despesa original (não virtual)
       await deleteExpenseMutation.mutateAsync(deletingExpense.id);
       setDeletingExpense(null);
     } catch (error) {
@@ -358,7 +473,8 @@ export default function ExpensesPage() {
   }
 
   return (
-    <DashboardLayout>
+    <TooltipProvider>
+      <DashboardLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -378,19 +494,37 @@ export default function ExpensesPage() {
               Gerencie suas despesas e pagamentos
             </p>
           </div>
-          <ExpenseForm
-            onSave={handleCreateExpense}
-            trigger={
-              <Button disabled={createExpenseMutation.isPending}>
-                {createExpenseMutation.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Plus className="mr-2 h-4 w-4" />
-                )}
-                Nova Despesa
-              </Button>
-            }
-          />
+          <div className="flex gap-2">
+            <ExpenseForm
+              onSave={handleCreateExpense}
+              trigger={
+                <Button disabled={createExpenseMutation.isPending}>
+                  {createExpenseMutation.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Plus className="mr-2 h-4 w-4" />
+                  )}
+                  Nova Despesa
+                </Button>
+              }
+            />
+            <Button 
+              variant="outline" 
+              onClick={() => setShowExpenseManager(true)}
+              className={cn(
+                "border-gray-300 dark:border-gray-600",
+                "text-gray-700 dark:text-gray-300",
+                "bg-white dark:bg-gray-800",
+                "hover:bg-gray-100 dark:hover:bg-gray-700",
+                "hover:text-gray-900 dark:hover:text-gray-100",
+                "hover:border-gray-400 dark:hover:border-gray-500",
+                "transition-colors duration-200"
+              )}
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              Gerenciar Despesas
+            </Button>
+          </div>
         </div>
 
         {/* Resumo Mensal - Design Melhorado */}
@@ -575,7 +709,11 @@ export default function ExpensesPage() {
                       <TableCell>
                         <Badge 
                           variant={status.isFullyPaid ? "default" : "secondary"}
-                          className={status.isFullyPaid ? "bg-green-600 hover:bg-green-700 text-white border-green-600" : ""}
+                          className={
+                            status.isFullyPaid 
+                              ? "bg-green-600 hover:bg-green-700 text-white border-green-600" 
+                              : "bg-red-800/90 hover:bg-red-700 text-white border-red-700 dark:bg-red-900/80 dark:border-red-800 dark:text-red-100"
+                          }
                         >
                           {status.isFullyPaid ? "Pago" : "Pendente"}
                         </Badge>
@@ -616,7 +754,7 @@ export default function ExpensesPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              {!status.isFullyPaid && (
+                              {!status.isFullyPaid ? (
                                 <DropdownMenuItem 
                                   onClick={() => handleMarkAsPaid(expense)}
                                   disabled={markExpenseAsPaidMutation.isPending || payRecurringExpenseMutation.isPending}
@@ -628,18 +766,43 @@ export default function ExpensesPage() {
                                   )}
                                   Marcar como Pago
                                 </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem 
+                                  onClick={() => handleMarkAsPending(expense)}
+                                  disabled={markExpenseAsPendingMutation.isPending}
+                                  className="text-orange-600 hover:text-orange-700 dark:text-orange-400 dark:hover:text-orange-300"
+                                >
+                                  {markExpenseAsPendingMutation.isPending ? (
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  ) : (
+                                    <Undo2 className="h-4 w-4 mr-2" />
+                                  )}
+                                  Desfazer Pagamento
+                                </DropdownMenuItem>
                               )}
-                              <DropdownMenuItem onClick={() => handleEditExpense(expense)}>
-                                <Edit className="h-4 w-4 mr-2" />
-                                Editar
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => handleDeleteExpense(expense)}
-                                className="text-red-600 focus:text-red-600"
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Excluir
-                              </DropdownMenuItem>
+                              {!expense.isRecurring && !expense.installments ? (
+                                <DropdownMenuItem onClick={() => handleEditExpense(expense)}>
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Editar
+                                </DropdownMenuItem>
+                              ) : (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div>
+                                      <DropdownMenuItem 
+                                        disabled
+                                        className="text-gray-400 cursor-not-allowed"
+                                      >
+                                        <Edit className="h-4 w-4 mr-2" />
+                                        Editar
+                                      </DropdownMenuItem>
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="bg-primary text-primary-foreground">
+                                    <p>Somente despesas únicas podem ser editadas</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -664,7 +827,7 @@ export default function ExpensesPage() {
 
       {/* Modal de Detalhes da Despesa */}
       {selectedExpense && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center ${showExpenseManager ? 'z-[60]' : 'z-50'}`}>
           <div className="bg-background rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto border shadow-xl">
             <div className="flex justify-between items-center mb-6">
               <h2 className={cn(
@@ -784,10 +947,11 @@ export default function ExpensesPage() {
               <Button variant="outline" onClick={() => setSelectedExpense(null)}>
                 Fechar
               </Button>
-              {!calculateExpenseStatus(selectedExpense).isFullyPaid && (
+              {!calculateExpenseStatus(selectedExpense).isFullyPaid ? (
                 <Button 
                   onClick={() => handleMarkAsPaid(selectedExpense)}
                   disabled={markExpenseAsPaidMutation.isPending || payRecurringExpenseMutation.isPending}
+                  className="bg-green-600 hover:bg-green-700 text-white border-green-600"
                 >
                   {(markExpenseAsPaidMutation.isPending || payRecurringExpenseMutation.isPending) ? (
                     <>
@@ -801,6 +965,24 @@ export default function ExpensesPage() {
                     </>
                   )}
                 </Button>
+              ) : (
+                <Button 
+                  onClick={() => handleMarkAsPending(selectedExpense)}
+                  disabled={markExpenseAsPendingMutation.isPending}
+                  className="bg-orange-600 hover:bg-orange-700 text-white border-orange-600 dark:bg-orange-500 dark:hover:bg-orange-600 dark:border-orange-500 dark:text-orange-100"
+                >
+                  {markExpenseAsPendingMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Desfazendo...
+                    </>
+                  ) : (
+                    <>
+                      <Undo2 className="h-4 w-4 mr-2" />
+                      Desfazer Pagamento
+                    </>
+                  )}
+                </Button>
               )}
               </div>
             </div>
@@ -810,7 +992,7 @@ export default function ExpensesPage() {
 
       {/* Modal de Confirmação de Exclusão */}
       {deletingExpense && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className={`fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center ${showExpenseManager ? 'z-[60]' : 'z-50'}`}>
           <div className="bg-background rounded-lg p-6 max-w-md w-full mx-4 border shadow-xl">
             <div className="flex items-center mb-4">
               <div className="flex-shrink-0 w-10 h-10 mx-auto bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
@@ -858,6 +1040,224 @@ export default function ExpensesPage() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+
+      {/* Modal de Gerenciamento de Despesas */}
+      {showExpenseManager && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-background rounded-lg max-w-6xl w-full mx-4 max-h-[90vh] overflow-hidden border shadow-xl">
+            <div className="flex justify-between items-center p-6 border-b">
+              <div>
+                <h2 className={cn(
+                  "text-xl font-semibold",
+                  "spotify-text-gradient",
+                  "dark:text-white",
+                  "spotify:text-white"
+                )}>
+                  Gerenciar Despesas
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Visualize e gerencie todas as suas despesas cadastradas
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setShowExpenseManager(false);
+                  setManagerSearchTerm("");
+                  setManagerSelectedCategory("");
+                }}
+                className="spotify-hover"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="p-6">
+              {/* Filtros do Modal */}
+              <div className="flex items-center gap-3 mb-6">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Buscar despesas por descrição ou observações..."
+                    value={managerSearchTerm}
+                    onChange={(e) => setManagerSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                
+                <Select value={managerSelectedCategory} onValueChange={setManagerSelectedCategory}>
+                  <SelectTrigger className="w-48">
+                    <SelectValue placeholder="Filtrar por categoria" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as categorias</SelectItem>
+                    {categories.map((category) => (
+                      <SelectItem key={category.id} value={category.id.toString()}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {/* Contador de resultados */}
+                <div className="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                  {filteredManagerExpenses.length} despesa{filteredManagerExpenses.length !== 1 ? 's' : ''}
+                </div>
+              </div>
+
+              {/* Tabela de Despesas */}
+              <div className="overflow-auto max-h-[50vh]">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Descrição</TableHead>
+                      <TableHead>Valor</TableHead>
+                      <TableHead>Categoria</TableHead>
+                      <TableHead>Data de Criação</TableHead>
+                      <TableHead>Data de Vencimento</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Tipo</TableHead>
+                      <TableHead className="text-center">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredManagerExpenses.map((expense) => {
+                      const status = calculateExpenseStatus(expense);
+                      return (
+                        <TableRow key={expense.id}>
+                          <TableCell className="font-medium max-w-xs">
+                            <div className="truncate" title={expense.description}>
+                              {expense.description}
+                            </div>
+                            {expense.notes && (
+                              <div className="text-xs text-gray-500 truncate" title={expense.notes}>
+                                {expense.notes}
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {formatCurrency(expense.amount)}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1">
+                              {(expense.categories || []).map((catId: string) => {
+                                const category = categories.find(c => c.id.toString() === catId);
+                                return (
+                                  <Badge key={catId} variant="outline" className="text-xs">
+                                    {category?.name || catId}
+                                  </Badge>
+                                );
+                              })}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {formatDate(expense.createdAt)}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {formatDate(expense.dueDate)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant={status.isFullyPaid ? "default" : "secondary"}
+                              className={
+                                status.isFullyPaid 
+                                  ? "bg-green-600 hover:bg-green-700 text-white border-green-600" 
+                                  : "bg-red-800/90 hover:bg-red-700 text-white border-red-700 dark:bg-red-900/80 dark:border-red-800 dark:text-red-100"
+                              }
+                            >
+                              {status.isFullyPaid ? "Pago" : "Pendente"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {expense.isRecurring 
+                                ? `Recorrente (${
+                                    expense.recurringFrequency === 'MONTHLY' ? 'mensal' :
+                                    expense.recurringFrequency === 'WEEKLY' ? 'semanal' :
+                                    expense.recurringFrequency === 'YEARLY' ? 'anual' :
+                                    'outro'
+                                  })` 
+                                : expense.installments 
+                                ? `Parcelada (${expense.installments}x)`
+                                : "Única"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <div className="flex justify-center gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedExpense(expense);
+                                }}
+                                title="Ver detalhes"
+                              >
+                                <Eye className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => {
+                                  setDeletingExpense(expense);
+                                }}
+                                title="Excluir despesa"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+                
+                {filteredManagerExpenses.length === 0 && (
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                    {managerSearchTerm || managerSelectedCategory !== "" 
+                      ? "Nenhuma despesa encontrada com os filtros aplicados" 
+                      : "Nenhuma despesa cadastrada"}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Rodapé do Modal */}
+            <div className="px-6 py-4 border-t bg-gray-50 dark:bg-gray-800/50">
+              <div className="flex justify-between items-center">
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  💡 <strong>Dica:</strong> Despesas recorrentes mostram suas ocorrências na tabela principal, mas só podem ser excluídas aqui.
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowExpenseManager(false);
+                    setManagerSearchTerm("");
+                    setManagerSelectedCategory("");
+                  }}
+                >
+                  Fechar
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Edição */}
+      {editingExpense && (
+        <EditExpenseForm
+          expense={editingExpense}
+          open={!!editingExpense}
+          onOpenChange={(open) => {
+            if (!open) setEditingExpense(null);
+          }}
+          onSave={handleSaveEdit}
+          isLoading={editExpenseMutation.isPending}
+        />
+      )}
+      </DashboardLayout>
+    </TooltipProvider>
   );
 }

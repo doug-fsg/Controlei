@@ -50,7 +50,7 @@ export async function getSessionUser() {
 
 // ===== FUNÇÕES MULTI-TENANT =====
 
-export async function getCurrentOrganization(): Promise<{id: number, name: string, slug: string} | null> {
+export async function getCurrentOrganization(): Promise<{id: number, name: string, slug: string, logoUrl?: string | null} | null> {
   try {
     const userId = await getUserIdFromSession()
     if (!userId) return null
@@ -66,7 +66,8 @@ export async function getCurrentOrganization(): Promise<{id: number, name: strin
           select: {
             id: true,
             name: true,
-            slug: true
+            slug: true,
+            logoUrl: true
           }
         }
       }

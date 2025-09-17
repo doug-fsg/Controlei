@@ -46,6 +46,7 @@ const calculateSeverity = (daysOverdue: number) => {
 
 export default function ReportsPage() {
   const [filters, setFilters] = useState<CashFlowFilters>(initialFilters);
+  const [tempFilters, setTempFilters] = useState<CashFlowFilters>(initialFilters);
   const [showDetails, setShowDetails] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState('month');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
@@ -141,15 +142,21 @@ export default function ReportsPage() {
         break;
     }
     
-    const newFilters = { ...filters, dateFrom, dateTo, period: period as 'week' | 'month' | 'quarter' | 'year' };
-    setFilters(newFilters);
+    const newFilters = { ...tempFilters, dateFrom, dateTo, period: period as 'week' | 'month' | 'quarter' | 'year' };
+    setTempFilters(newFilters);
     setSelectedPeriod(period);
   };
   
   // Função para limpar filtros
   const clearFilters = () => {
+    setTempFilters(initialFilters);
     setFilters(initialFilters);
     setSelectedPeriod('month');
+  };
+
+  // Função para aplicar filtros
+  const applyFilters = () => {
+    setFilters(tempFilters);
   };
 
   const calculateRunningBalance = () => {
@@ -367,8 +374,8 @@ export default function ReportsPage() {
                   <div>
                             <label className="text-xs font-medium text-muted-foreground mb-1 block">Tipo</label>
                     <Select
-                      value={filters.type}
-                              onValueChange={(value) => setFilters(prev => ({ ...prev, type: value as 'ALL' | 'INCOME' | 'EXPENSE' }))}
+                      value={tempFilters.type}
+                              onValueChange={(value) => setTempFilters(prev => ({ ...prev, type: value as 'ALL' | 'INCOME' | 'EXPENSE' }))}
                     >
                               <SelectTrigger className="h-8 text-sm">
                         <SelectValue />
@@ -384,8 +391,8 @@ export default function ReportsPage() {
                   <div>
                             <label className="text-xs font-medium text-muted-foreground mb-1 block">Status</label>
                     <Select
-                      value={filters.status}
-                              onValueChange={(value) => setFilters(prev => ({ ...prev, status: value as 'ALL' | 'PENDING' | 'PAID' }))}
+                      value={tempFilters.status}
+                              onValueChange={(value) => setTempFilters(prev => ({ ...prev, status: value as 'ALL' | 'PENDING' | 'PAID' }))}
                     >
                               <SelectTrigger className="h-8 text-sm">
                         <SelectValue />
@@ -399,12 +406,12 @@ export default function ReportsPage() {
                   </div>
 
                           {/* Dropdown de Categorias - só aparece quando tipo é EXPENSE */}
-                          {filters.type === 'EXPENSE' && (
+                          {tempFilters.type === 'EXPENSE' && (
                             <div>
                               <label className="text-xs font-medium text-muted-foreground mb-1 block">Categoria</label>
                               <Select
-                                value={filters.categoryId?.toString() || 'ALL'}
-                                onValueChange={(value) => setFilters(prev => ({ 
+                                value={tempFilters.categoryId?.toString() || 'ALL'}
+                                onValueChange={(value) => setTempFilters(prev => ({ 
                                   ...prev, 
                                   categoryId: value === 'ALL' ? undefined : parseInt(value) 
                                 }))}
@@ -428,8 +435,8 @@ export default function ReportsPage() {
                             <label className="text-xs font-medium text-muted-foreground mb-1 block">Data Inicial</label>
                     <Input
                       type="date"
-                      value={filters.dateFrom}
-                      onChange={(e) => setFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
+                      value={tempFilters.dateFrom}
+                      onChange={(e) => setTempFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
                               className="h-8 text-sm"
                     />
                   </div>
@@ -438,14 +445,14 @@ export default function ReportsPage() {
                             <label className="text-xs font-medium text-muted-foreground mb-1 block">Data Final</label>
                     <Input
                       type="date"
-                      value={filters.dateTo}
-                      onChange={(e) => setFilters(prev => ({ ...prev, dateTo: e.target.value }))}
+                      value={tempFilters.dateTo}
+                      onChange={(e) => setTempFilters(prev => ({ ...prev, dateTo: e.target.value }))}
                               className="h-8 text-sm"
                     />
                   </div>
                 </div>
 
-                        <div className="flex justify-start">
+                        <div className="flex justify-start gap-2">
                   <Button
                     variant="outline"
                             size="sm"
@@ -453,6 +460,14 @@ export default function ReportsPage() {
                             className="h-7 px-3 text-xs"
                   >
                     Limpar Filtros
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={applyFilters}
+                    className="h-7 px-3 text-xs bg-spotify-green text-white hover:bg-spotify-green/90"
+                  >
+                    Aplicar Filtros
                   </Button>
                 </div>
                       </div>

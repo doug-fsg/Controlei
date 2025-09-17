@@ -18,8 +18,9 @@ export function useCreateExpense() {
   return useMutation({
     mutationFn: expensesApi.create,
     onSuccess: (newExpense) => {
-      // Atualizar cache da lista de despesas
-      queryClient.setQueryData(['expenses'], (old: Expense[] = []) => [...old, newExpense])
+      // Invalidar cache para recarregar dados atualizados
+      // Isso é mais seguro pois newExpense pode ser um array (despesas parceladas)
+      queryClient.invalidateQueries({ queryKey: ['expenses'] })
     },
   })
 }
@@ -30,6 +31,41 @@ export function useMarkExpenseAsPaid() {
   
   return useMutation({
     mutationFn: salesApi.markExpenseAsPaid,
+    onSuccess: () => {
+      // Invalidar cache das despesas para recarregar dados atualizados
+      queryClient.invalidateQueries({ queryKey: ['expenses'] })
+    },
+  })
+}
+
+// Hook para marcar despesa como pendente (desfazer pagamento)
+export function useMarkExpenseAsPending() {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: salesApi.markExpenseAsPending,
+    onSuccess: () => {
+      // Invalidar cache das despesas para recarregar dados atualizados
+      queryClient.invalidateQueries({ queryKey: ['expenses'] })
+    },
+  })
+}
+
+// Hook para editar despesa
+export function useEditExpense() {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: ({ expenseId, data }: { 
+      expenseId: number, 
+      data: {
+        description: string
+        amount: number
+        dueDate: string
+        categoryId: number
+        notes?: string
+      }
+    }) => salesApi.editExpense(expenseId, data),
     onSuccess: () => {
       // Invalidar cache das despesas para recarregar dados atualizados
       queryClient.invalidateQueries({ queryKey: ['expenses'] })

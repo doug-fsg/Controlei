@@ -3,6 +3,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { cn } from "@/lib/utils";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
+import { Toaster } from "@/components/ui/toaster";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -34,6 +35,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </main>
         </div>
       </div>
+      <Toaster />
     </ThemeProvider>
   );
 }

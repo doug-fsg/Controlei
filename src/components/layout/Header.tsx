@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, User, LogOut } from "lucide-react";
+import { Bell, User, LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { signOut, useSession } from "next-auth/react";
@@ -109,11 +109,15 @@ export default function Header() {
             )}>
               Perfil
             </DropdownMenuItem>
-            <DropdownMenuItem className={cn(
-              "text-spotify-dark-text hover:bg-spotify-green-light/10 hover:text-spotify-green-light", // Light mode - cores escuras
-              "dark:text-spotify-light-gray dark:hover:text-white dark:hover:bg-spotify-green/20", // Dark mode
-              "spotify:text-spotify-light-gray spotify:hover:text-white spotify:hover:bg-spotify-green/20" // Spotify mode
-            )}>
+            <DropdownMenuItem 
+              onClick={() => router.push('/settings')}
+              className={cn(
+                "text-spotify-dark-text hover:bg-spotify-green-light/10 hover:text-spotify-green-light", // Light mode - cores escuras
+                "dark:text-spotify-light-gray dark:hover:text-white dark:hover:bg-spotify-green/20", // Dark mode
+                "spotify:text-spotify-light-gray spotify:hover:text-white spotify:hover:bg-spotify-green/20" // Spotify mode
+              )}
+            >
+              <Settings className="mr-2 h-4 w-4" />
               Configurações
             </DropdownMenuItem>
             <DropdownMenuSeparator className={cn(

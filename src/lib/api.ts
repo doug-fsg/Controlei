@@ -152,6 +152,24 @@ export const salesApi = {
     }),
   }),
   
+  markExpenseAsPending: (expenseId: number) => apiCall<Expense>(`/expenses/${expenseId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      status: 'PENDING',
+    }),
+  }),
+  
+  editExpense: (expenseId: number, data: {
+    description: string
+    amount: number
+    dueDate: string
+    categoryId: number
+    notes?: string
+  }) => apiCall<Expense>(`/expenses/${expenseId}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }),
+  
   deleteExpense: (expenseId: number) => apiCall<{ message: string }>(`/expenses/${expenseId}`, {
     method: 'DELETE',
   }),

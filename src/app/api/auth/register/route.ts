@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     // Hash da senha
     const hashedPassword = await bcrypt.hash(password, 12)
 
-    // Criar usuário
+    // Criar usuário E associar à organização padrão
     const user = await prisma.user.create({
       data: {
         name,
@@ -43,6 +43,22 @@ export async function POST(request: NextRequest) {
         createdAt: true,
       }
     })
+
+    // CORREÇÃO: Associar automaticamente à primeira organização disponível
+    const firstOrganization = await prisma.organization.findFirst({
+      orderBy: { createdAt: 'asc' }
+    })
+
+    if (firstOrganization) {
+      await prisma.userOrganization.create({
+        data: {
+          userId: user.id,
+          organizationId: firstOrganization.id,
+          role: 'member', // Novos usuários começam como membro
+          isActive: true
+        }
+      })
+    }
 
     return NextResponse.json(
       { 

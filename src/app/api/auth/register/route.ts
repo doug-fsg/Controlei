@@ -44,21 +44,22 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // CORREÇÃO: Associar automaticamente à primeira organização disponível
-    const firstOrganization = await prisma.organization.findFirst({
-      orderBy: { createdAt: 'asc' }
-    })
-
-    if (firstOrganization) {
-      await prisma.userOrganization.create({
-        data: {
-          userId: user.id,
-          organizationId: firstOrganization.id,
-          role: 'member', // Novos usuários começam como membro
-          isActive: true
+    // Criar uma nova organização para o usuário
+    const organizationSlug = `org-${user.id}-${Date.now().toString(36)}`
+    
+    const organization = await prisma.organization.create({
+      data: {
+        name: `Organização de ${user.name || 'Usuário'}`,
+        slug: organizationSlug,
+        users: {
+          create: {
+            userId: user.id,
+            role: 'owner', // O criador é o proprietário
+            isActive: true
+          }
         }
-      })
-    }
+      }
+    })
 
     return NextResponse.json(
       { 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
-import { requireAuth } from '@/lib/auth-utils'
+import { requireAuth, getCurrentOrganization } from '@/lib/auth-utils'
 
 // Schema de validação para criação de venda
 const createSaleSchema = z.object({
@@ -24,10 +24,18 @@ const createSaleSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const userId = await requireAuth()
+    const organization = await getCurrentOrganization()
+    
+    if (!organization) {
+      return NextResponse.json(
+        { error: 'Organização não encontrada' },
+        { status: 400 }
+      )
+    }
 
     const sales = await prisma.sale.findMany({
       where: {
-        userId,
+        organizationId: organization.id,
       },
       include: {
         client: true,
@@ -44,7 +52,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(sales)
   } catch (error) {
-    if (error instanceof Error && error.message === 'Não autorizado') {
+    if (error instanceof Error && (error.message === 'Não autorizado' || error.message === 'Acesso negado à organização')) {
       return NextResponse.json(
         { error: 'Não autorizado' },
         { status: 401 }
@@ -63,17 +71,25 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const userId = await requireAuth()
+    const organization = await getCurrentOrganization()
+    
+    if (!organization) {
+      return NextResponse.json(
+        { error: 'Organização não encontrada' },
+        { status: 400 }
+      )
+    }
     
     const body = await request.json()
     
     // Validar dados
     const validatedData = createSaleSchema.parse(body)
 
-    // Verificar se cliente existe e pertence ao usuário
+    // Verificar se cliente existe e pertence à organização
     const client = await prisma.client.findFirst({
       where: {
         id: validatedData.clientId,
-        userId,
+        organizationId: organization.id,
       },
     })
 
@@ -94,6 +110,7 @@ export async function POST(request: NextRequest) {
           saleDate: new Date(validatedData.saleDate),
           notes: validatedData.notes,
           userId,
+          organizationId: organization.id,
         },
       })
 
@@ -156,7 +173,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(completeSale, { status: 201 })
   } catch (error) {
-    if (error instanceof Error && error.message === 'Não autorizado') {
+    if (error instanceof Error && (error.message === 'Não autorizado' || error.message === 'Acesso negado à organização')) {
       return NextResponse.json(
         { error: 'Não autorizado' },
         { status: 401 }

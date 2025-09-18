@@ -52,7 +52,9 @@ export default function SalesPage() {
 
   // Estados dos filtros
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [dateFilter, setDateFilter] = useState<string>('all');
+  const [dateFilter, setDateFilter] = useState<string>('current_month');
+  const [customStartDate, setCustomStartDate] = useState<string>("");
+  const [customEndDate, setCustomEndDate] = useState<string>("");
 
   // Buscar a venda selecionada sempre com os dados mais recentes
   const selectedSale = selectedSaleId ? sales.find(sale => sale.id === selectedSaleId) || null : null;
@@ -134,31 +136,54 @@ export default function SalesPage() {
     };
   };
 
-  const filteredSales = sales.filter(sale => {
-    // Filtro de busca por texto
-    const matchesSearch = sale.client?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         sale.notes?.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    // Filtro de status
-    const matchesStatus = statusFilter === 'all' || 
-                         (statusFilter === 'paid' && calculateSaleStatus(sale).isFullyPaid) ||
-                         (statusFilter === 'pending' && !calculateSaleStatus(sale).isFullyPaid);
-    
-    // Filtro de data
-    let matchesDate = true;
-    if (dateFilter !== 'all') {
-      const saleDate = new Date(sale.saleDate);
-      const now = new Date();
-      const diffTime = Math.abs(now.getTime() - saleDate.getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  // Filtrar vendas com base nos filtros selecionados
+  const filteredSales = useMemo(() => {
+    return sales.filter(sale => {
+      // Filtro de busca por texto
+      const matchesSearch = sale.client?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          sale.notes?.toLowerCase().includes(searchTerm.toLowerCase());
       
-      if (dateFilter === 'today') matchesDate = diffDays === 0;
-      else if (dateFilter === 'week') matchesDate = diffDays <= 7;
-      else if (dateFilter === 'month') matchesDate = diffDays <= 30;
-    }
-    
-    return matchesSearch && matchesStatus && matchesDate;
-  });
+      // Filtro de status
+      const matchesStatus = statusFilter === 'all' || 
+                          (statusFilter === 'paid' && calculateSaleStatus(sale).isFullyPaid) ||
+                          (statusFilter === 'pending' && !calculateSaleStatus(sale).isFullyPaid);
+      
+      // Filtro de data
+      let matchesDate = true;
+      if (dateFilter !== 'all') {
+        const saleDate = new Date(sale.saleDate);
+        const now = new Date();
+        
+        if (dateFilter === 'current_month') {
+          matchesDate = saleDate.getMonth() === now.getMonth() && 
+                      saleDate.getFullYear() === now.getFullYear();
+        } else if (dateFilter === 'custom') {
+          if (customStartDate && customEndDate) {
+            // Criar datas locais para evitar problemas de timezone
+            const [startYear, startMonth, startDay] = customStartDate.split('-').map(Number);
+            const [endYear, endMonth, endDay] = customEndDate.split('-').map(Number);
+            
+            const startDate = new Date(startYear, startMonth - 1, startDay); // mês é 0-indexado
+            const endDate = new Date(endYear, endMonth - 1, endDay);
+            const saleDateOnly = new Date(saleDate.getFullYear(), saleDate.getMonth(), saleDate.getDate());
+            
+            matchesDate = saleDateOnly >= startDate && saleDateOnly <= endDate;
+          } else {
+            matchesDate = false; // Se não há datas definidas, não mostrar nada
+          }
+        } else {
+          const diffTime = Math.abs(now.getTime() - saleDate.getTime());
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          
+          if (dateFilter === 'today') matchesDate = diffDays === 0;
+          else if (dateFilter === 'week') matchesDate = diffDays <= 7;
+          else if (dateFilter === 'month') matchesDate = diffDays <= 30;
+        }
+      }
+      
+      return matchesSearch && matchesStatus && matchesDate;
+    });
+  }, [sales, searchTerm, statusFilter, dateFilter, customStartDate, customEndDate]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -171,9 +196,48 @@ export default function SalesPage() {
     const dateObj = typeof date === 'string' ? new Date(date) : date;
     return dateObj.toLocaleDateString('pt-BR');
   };
+  
+  // Função para obter o título do resumo com base no filtro
+  const getResumoTitle = () => {
+    switch (dateFilter) {
+      case 'current_month':
+        return 'Resumo do Mês Atual';
+      case 'today':
+        return 'Resumo de Hoje';
+      case 'week':
+        return 'Resumo da Semana';
+      case 'month':
+        return 'Resumo do Último Mês';
+      case 'custom':
+        return 'Resumo Personalizado';
+      case 'all':
+        return 'Resumo Geral';
+      default:
+        return 'Resumo';
+    }
+  };
+
+  // Função para detectar se uma venda tem pagamentos antecipados
+  const hasAdvancedPayments = (sale: Sale) => {
+    const now = new Date();
+    return sale.payments.some(payment => 
+      payment.status === 'PAID' && 
+      new Date(payment.dueDate) > now
+    );
+  };
+  
+  // Função para lidar com mudanças no filtro de período
+  const handlePeriodChange = (period: string) => {
+    setDateFilter(period);
+    // Limpar datas personalizadas quando mudar de período
+    if (period !== "custom") {
+      setCustomStartDate("");
+      setCustomEndDate("");
+    }
+  };
 
 
-  // Cálculos do resumo mensal - similar ao expenses
+  // Cálculos do resumo baseado nos filtros aplicados
   const monthlyStats = useMemo(() => {
     if (!sales || !Array.isArray(sales)) {
       return {
@@ -187,43 +251,103 @@ export default function SalesPage() {
       };
     }
     
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
+    // Usar o filteredSales que já foi calculado
     
-    // Filtra vendas do mês atual
-    const currentMonthSales = sales.filter(sale => {
-      const saleDate = new Date(sale.saleDate);
-      return saleDate.getMonth() === currentMonth && 
-             saleDate.getFullYear() === currentYear;
-    });
+    // Usar as vendas filtradas para os cálculos
+    let totalAmount = 0;
+    let totalPaid = 0;
+    let totalPending = 0;
     
-    // Filtra pagamentos pendentes que vencem no mês atual
-    const currentMonthPendingPayments = sales.flatMap(sale => 
-      sale.payments
-        .filter(payment => payment.status === 'PENDING')
-        .filter(payment => {
-          const dueDate = new Date(payment.dueDate);
-          return dueDate.getMonth() === currentMonth && 
-                 dueDate.getFullYear() === currentYear;
-        })
-        .map(payment => ({
-          ...payment,
-          clientName: sale.client?.name || 'Cliente não identificado'
-        }))
-    );
+    // Quando o filtro é por mês atual, considerar apenas os pagamentos do mês atual
+    let totalReceivedThisMonth = 0; // Novo: valor realmente recebido no mês
     
-    const totalAmount = currentMonthSales.reduce((sum, sale) => sum + sale.totalAmount, 0);
-    const totalPaid = currentMonthSales.reduce((sum, sale) => {
-      const status = calculateSaleStatus(sale);
-      return sum + status.totalPaid;
-    }, 0);
+    if (dateFilter === 'current_month') {
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+      
+      filteredSales.forEach(sale => {
+        // Para cada venda, filtrar apenas os pagamentos do mês atual (por vencimento)
+        const currentMonthPayments = sale.payments.filter(payment => {
+          const paymentDate = new Date(payment.dueDate);
+          return paymentDate.getMonth() === currentMonth && 
+                 paymentDate.getFullYear() === currentYear;
+        });
+        
+        // Calcular valores que realmente entraram este mês (independente do vencimento)
+        const receivedThisMonth = sale.payments
+          .filter(payment => payment.status === 'PAID' && payment.paidDate)
+          .filter(payment => {
+            const paidDate = new Date(payment.paidDate);
+            return paidDate.getMonth() === currentMonth && 
+                   paidDate.getFullYear() === currentYear;
+          })
+          .reduce((sum, payment) => sum + payment.amount, 0);
+        totalReceivedThisMonth += receivedThisMonth;
+        
+        // Somar os valores dos pagamentos do mês atual (por vencimento)
+        const monthAmount = currentMonthPayments.reduce((sum, payment) => sum + payment.amount, 0);
+        totalAmount += monthAmount;
+        
+        // Somar pagamentos pagos do mês atual (por vencimento)
+        const monthPaid = currentMonthPayments
+          .filter(payment => payment.status === 'PAID')
+          .reduce((sum, payment) => sum + payment.amount, 0);
+        totalPaid += monthPaid;
+        
+        // Somar pagamentos pendentes do mês atual (por vencimento)
+        const monthPending = currentMonthPayments
+          .filter(payment => payment.status === 'PENDING')
+          .reduce((sum, payment) => sum + payment.amount, 0);
+        totalPending += monthPending;
+      });
+    } else {
+      // Para outros filtros, usar o valor total da venda
+      totalAmount = filteredSales.reduce((sum, sale) => sum + sale.totalAmount, 0);
+      totalPaid = filteredSales.reduce((sum, sale) => {
+        const status = calculateSaleStatus(sale);
+        return sum + status.totalPaid;
+      }, 0);
+      totalPending = filteredSales.reduce((sum, sale) => {
+        const status = calculateSaleStatus(sale);
+        return sum + status.totalPending;
+      }, 0);
+    }
     
-    // Total pendente apenas do mês atual
-    const totalPending = currentMonthPendingPayments.reduce((sum, payment) => sum + payment.amount, 0);
+    // Filtra pagamentos pendentes baseado nas vendas filtradas
+    let currentMonthPendingPayments;
     
-    const totalSales = currentMonthSales.length;
-    const paidSales = currentMonthSales.filter(sale => 
+    if (dateFilter === 'current_month') {
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+      
+      currentMonthPendingPayments = filteredSales.flatMap(sale => 
+        sale.payments
+          .filter(payment => payment.status === 'PENDING')
+          .filter(payment => {
+            const paymentDate = new Date(payment.dueDate);
+            return paymentDate.getMonth() === currentMonth && 
+                   paymentDate.getFullYear() === currentYear;
+          })
+          .map(payment => ({
+            ...payment,
+            clientName: sale.client?.name || 'Cliente não identificado'
+          }))
+      );
+    } else {
+      currentMonthPendingPayments = filteredSales.flatMap(sale => 
+        sale.payments
+          .filter(payment => payment.status === 'PENDING')
+          .map(payment => ({
+            ...payment,
+            clientName: sale.client?.name || 'Cliente não identificado'
+          }))
+      );
+    }
+    
+    const totalSales = filteredSales.length;
+    const paidSales = filteredSales.filter(sale => 
       calculateSaleStatus(sale).isFullyPaid
     ).length;
     
@@ -234,10 +358,11 @@ export default function SalesPage() {
       totalSales,
       paidSales,
       pendingSales: totalSales - paidSales,
-      paymentProgress: totalAmount > 0 ? (totalPaid / totalAmount) * 100 : 0,
-      currentMonthPendingPayments // Adiciona para usar na seção "Próximos Recebimentos"
+      paymentProgress: totalAmount > 0 ? Math.min((totalPaid / totalAmount) * 100, 100) : 0, // Limitado a 100%
+      totalReceivedThisMonth, // Novo: valor realmente recebido no mês
+      currentMonthPendingPayments
     };
-  }, [sales]);
+  }, [filteredSales, dateFilter]);
 
   const handleCreateSale = async (data: CreateSaleData) => {
     try {
@@ -380,7 +505,7 @@ export default function SalesPage() {
                   "dark:text-spotify-green", // Dark mode
                   "spotify:text-spotify-green" // Spotify mode
                 )} />
-                Resumo do Mês
+                {getResumoTitle()}
               </CardTitle>
               <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full">
                 {monthlyStats.totalSales} venda{monthlyStats.totalSales !== 1 ? 's' : ''}
@@ -390,7 +515,7 @@ export default function SalesPage() {
           <CardContent>
             <div className="grid grid-cols-4 gap-4">
               <div className="text-center">
-                <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Total</div>
+                <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Previsto</div>
                 <div className="text-xl font-bold text-gray-900 dark:text-gray-100">{formatCurrency(monthlyStats.totalAmount)}</div>
               </div>
               <div className="text-center border-x border-gray-100 dark:border-gray-700">
@@ -401,7 +526,7 @@ export default function SalesPage() {
                   "dark:text-spotify-green", // Dark mode
                   "spotify:text-spotify-green" // Spotify mode
                 )}>
-                  {formatCurrency(monthlyStats.totalPaid)}
+                  {formatCurrency(dateFilter === 'current_month' ? monthlyStats.totalReceivedThisMonth : monthlyStats.totalPaid)}
                 </div>
               </div>
               <div className="text-center border-r border-gray-100 dark:border-gray-700">
@@ -454,17 +579,40 @@ export default function SalesPage() {
                 </SelectContent>
               </Select>
 
-              <Select value={dateFilter} onValueChange={setDateFilter}>
+              <Select value={dateFilter} onValueChange={handlePeriodChange}>
                 <SelectTrigger className="h-8 text-xs w-32">
                   <SelectValue placeholder="Período" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="current_month">Este mês</SelectItem>
                   <SelectItem value="all">Todos</SelectItem>
                   <SelectItem value="today">Hoje</SelectItem>
                   <SelectItem value="week">Última semana</SelectItem>
                   <SelectItem value="month">Último mês</SelectItem>
+                  <SelectItem value="custom">Personalizado</SelectItem>
                 </SelectContent>
               </Select>
+              
+              {/* Campos de data personalizada */}
+              {dateFilter === "custom" && (
+                <div className="flex gap-1.5 items-center">
+                  <input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    className="h-8 text-xs px-2 border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                    placeholder="Data inicial"
+                  />
+                  <span className="text-xs text-gray-500 dark:text-gray-400">até</span>
+                  <input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    className="h-8 text-xs px-2 border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                    placeholder="Data final"
+                  />
+                </div>
+              )}
 
             </div>
           </CardHeader>
@@ -495,7 +643,14 @@ export default function SalesPage() {
                       )}
                     >
                       <TableCell className="font-medium">
-                        {sale.client?.name}
+                        <div className="flex items-center gap-2">
+                          {sale.client?.name}
+                          {hasAdvancedPayments(sale) && (
+                            <Badge variant="outline" className="text-xs px-1 py-0 h-4 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-800">
+                              ANTECIPADO
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="font-semibold">{formatCurrency(sale.totalAmount)}</TableCell>
                       <TableCell>

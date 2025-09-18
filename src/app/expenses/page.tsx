@@ -58,6 +58,8 @@ export default function ExpensesPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedStatus, setSelectedStatus] = useState<string>("");
   const [selectedPeriod, setSelectedPeriod] = useState<string>("current_month");
+  const [customStartDate, setCustomStartDate] = useState<string>("");
+  const [customEndDate, setCustomEndDate] = useState<string>("");
   
   // Hooks do React Query
   const { data: expenses = [], isLoading: expensesLoading, error: expensesError } = useExpenses();
@@ -132,6 +134,34 @@ export default function ExpensesPage() {
     return dateObj.toLocaleDateString('pt-BR');
   };
 
+  const getPeriodTitle = (period: string) => {
+    switch (period) {
+      case "current_month":
+        return "Resumo do Mês";
+      case "next_month":
+        return "Resumo do Próximo Mês";
+      case "last_month":
+        return "Resumo do Mês Passado";
+      case "current_year":
+        return "Resumo do Ano";
+      case "custom":
+        return "Resumo Personalizado";
+      case "all":
+        return "Resumo Geral";
+      default:
+        return "Resumo do Período";
+    }
+  };
+
+  const handlePeriodChange = (period: string) => {
+    setSelectedPeriod(period);
+    // Limpar datas personalizadas quando mudar de período
+    if (period !== "custom") {
+      setCustomStartDate("");
+      setCustomEndDate("");
+    }
+  };
+
   const calculateExpenseStatus = (expense: Expense) => {
     const totalAmount = expense.amount;
     const totalPaid = expense.paidAmount;
@@ -189,8 +219,34 @@ export default function ExpensesPage() {
                       expenseDate.getFullYear() === lastMonth.getFullYear();
       } else if (selectedPeriod === "current_year") {
         matchesPeriod = expenseDate.getFullYear() === now.getFullYear();
-      } else if (selectedPeriod === "overdue") {
-        matchesPeriod = expenseDate < now && !status.isFullyPaid;
+      } else if (selectedPeriod === "custom") {
+        if (customStartDate && customEndDate) {
+          // Criar datas locais para evitar problemas de timezone
+          const [startYear, startMonth, startDay] = customStartDate.split('-').map(Number);
+          const [endYear, endMonth, endDay] = customEndDate.split('-').map(Number);
+          
+          const startDate = new Date(startYear, startMonth - 1, startDay); // mês é 0-indexado
+          const endDate = new Date(endYear, endMonth - 1, endDay);
+          const expenseDateOnly = new Date(expenseDate.getFullYear(), expenseDate.getMonth(), expenseDate.getDate());
+          
+          // Log temporário para debug
+          if (expense.description.includes("15/09") || expenseDate.getDate() === 15) {
+            console.log("=== DEBUG EXPENSE DATE ===");
+            console.log("Expense:", expense.description);
+            console.log("Original expenseDate:", expenseDate);
+            console.log("Normalized expenseDateOnly:", expenseDateOnly);
+            console.log("Filter startDate:", startDate);
+            console.log("Filter endDate:", endDate);
+            console.log("customStartDate string:", customStartDate);
+            console.log("customEndDate string:", customEndDate);
+            console.log("Match result:", expenseDateOnly >= startDate && expenseDateOnly <= endDate);
+            console.log("========================");
+          }
+          
+          matchesPeriod = expenseDateOnly >= startDate && expenseDateOnly <= endDate;
+        } else {
+          matchesPeriod = false; // Se não há datas definidas, não mostrar nada
+        }
       }
       
       return matchesSearch && matchesCategory && matchesStatus && matchesPeriod;
@@ -222,7 +278,7 @@ export default function ExpensesPage() {
       
       return 0;
     });
-  }, [expenses, recurringPayments, searchTerm, selectedCategory, selectedStatus, selectedPeriod]);
+  }, [expenses, recurringPayments, searchTerm, selectedCategory, selectedStatus, selectedPeriod, customStartDate, customEndDate]);
 
   // Filtros para o modal de gerenciamento (apenas despesas reais, não virtuais)
   const filteredManagerExpenses = useMemo(() => {
@@ -250,8 +306,8 @@ export default function ExpensesPage() {
     });
   }, [expenses, managerSearchTerm, managerSelectedCategory]);
 
-  // Cálculos do resumo mensal
-  const monthlyStats = useMemo(() => {
+  // Cálculos do resumo do período
+  const periodStats = useMemo(() => {
     // Garantir que expenses é um array válido
     if (!expenses || !Array.isArray(expenses)) {
       return {
@@ -268,17 +324,79 @@ export default function ExpensesPage() {
     // Usar despesas expandidas para cálculos também
     const expandedExpenses = generateRecurringOccurrences(expenses);
     const now = new Date();
-    const currentMonthExpenses = expandedExpenses.filter(expense => {
+    
+    // Aplicar TODOS os filtros que são usados na listagem
+    const filteredExpenses = expandedExpenses.filter(expense => {
+      // Filtro de busca por texto
+      const matchesSearch = searchTerm === "" || 
+        expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (expense.notes && expense.notes.toLowerCase().includes(searchTerm.toLowerCase()));
+      
+      // Filtro por categoria
+      const matchesCategory = selectedCategory === "" || selectedCategory === "all" || 
+        (expense.categories && expense.categories.includes(selectedCategory));
+      
+      // Filtro por status
+      const status = calculateExpenseStatus(expense);
+      const matchesStatus = selectedStatus === "" || selectedStatus === "all" || 
+        (selectedStatus === "paid" && status.isFullyPaid) ||
+        (selectedStatus === "pending" && !status.isFullyPaid);
+      
+      // Filtro por período
       const expenseDate = new Date(expense.dueDate);
-      return expenseDate.getMonth() === now.getMonth() && 
-             expenseDate.getFullYear() === now.getFullYear();
+      let matchesPeriod = true;
+      
+      if (selectedPeriod === "current_month") {
+        matchesPeriod = expenseDate.getMonth() === now.getMonth() && 
+                      expenseDate.getFullYear() === now.getFullYear();
+      } else if (selectedPeriod === "next_month") {
+        const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1);
+        matchesPeriod = expenseDate.getMonth() === nextMonth.getMonth() && 
+                      expenseDate.getFullYear() === nextMonth.getFullYear();
+      } else if (selectedPeriod === "last_month") {
+        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1);
+        matchesPeriod = expenseDate.getMonth() === lastMonth.getMonth() && 
+                      expenseDate.getFullYear() === lastMonth.getFullYear();
+      } else if (selectedPeriod === "current_year") {
+        matchesPeriod = expenseDate.getFullYear() === now.getFullYear();
+      } else if (selectedPeriod === "custom") {
+        if (customStartDate && customEndDate) {
+          // Criar datas locais para evitar problemas de timezone
+          const [startYear, startMonth, startDay] = customStartDate.split('-').map(Number);
+          const [endYear, endMonth, endDay] = customEndDate.split('-').map(Number);
+          
+          const startDate = new Date(startYear, startMonth - 1, startDay); // mês é 0-indexado
+          const endDate = new Date(endYear, endMonth - 1, endDay);
+          const expenseDateOnly = new Date(expenseDate.getFullYear(), expenseDate.getMonth(), expenseDate.getDate());
+          
+          // Log temporário para debug
+          if (expense.description.includes("15/09") || expenseDate.getDate() === 15) {
+            console.log("=== DEBUG EXPENSE DATE ===");
+            console.log("Expense:", expense.description);
+            console.log("Original expenseDate:", expenseDate);
+            console.log("Normalized expenseDateOnly:", expenseDateOnly);
+            console.log("Filter startDate:", startDate);
+            console.log("Filter endDate:", endDate);
+            console.log("customStartDate string:", customStartDate);
+            console.log("customEndDate string:", customEndDate);
+            console.log("Match result:", expenseDateOnly >= startDate && expenseDateOnly <= endDate);
+            console.log("========================");
+          }
+          
+          matchesPeriod = expenseDateOnly >= startDate && expenseDateOnly <= endDate;
+        } else {
+          matchesPeriod = false; // Se não há datas definidas, não mostrar nada
+        }
+      }
+      
+      return matchesSearch && matchesCategory && matchesStatus && matchesPeriod;
     });
     
-    const totalAmount = currentMonthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-    const totalPaid = currentMonthExpenses.reduce((sum, expense) => sum + expense.paidAmount, 0);
+    const totalAmount = filteredExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const totalPaid = filteredExpenses.reduce((sum, expense) => sum + expense.paidAmount, 0);
     const totalPending = totalAmount - totalPaid;
-    const totalExpenses = currentMonthExpenses.length;
-    const paidExpenses = currentMonthExpenses.filter(expense => 
+    const totalExpenses = filteredExpenses.length;
+    const paidExpenses = filteredExpenses.filter(expense => 
       calculateExpenseStatus(expense).isFullyPaid
     ).length;
     
@@ -291,7 +409,7 @@ export default function ExpensesPage() {
       pendingExpenses: totalExpenses - paidExpenses,
       paymentProgress: totalAmount > 0 ? (totalPaid / totalAmount) * 100 : 0
     };
-  }, [expenses, recurringPayments]);
+  }, [expenses, recurringPayments, selectedPeriod, selectedCategory, selectedStatus, searchTerm, customStartDate, customEndDate]);
 
 
 
@@ -533,10 +651,10 @@ export default function ExpensesPage() {
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-sm">
                 <Calendar className="h-4 w-4 text-blue-500 dark:text-blue-400" />
-                Resumo do Mês
+                {getPeriodTitle(selectedPeriod)}
               </CardTitle>
               <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full">
-                {monthlyStats.totalExpenses} despesa{monthlyStats.totalExpenses !== 1 ? 's' : ''}
+                {periodStats.totalExpenses} despesa{periodStats.totalExpenses !== 1 ? 's' : ''}
               </span>
             </div>
           </CardHeader>
@@ -544,19 +662,19 @@ export default function ExpensesPage() {
             <div className="grid grid-cols-4 gap-4">
               <div className="text-center">
                 <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Total</div>
-                <div className="text-xl font-bold text-gray-900 dark:text-gray-100">{formatCurrency(monthlyStats.totalAmount)}</div>
+                <div className="text-xl font-bold text-gray-900 dark:text-gray-100">{formatCurrency(periodStats.totalAmount)}</div>
               </div>
               <div className="text-center border-x border-gray-100 dark:border-gray-700">
                 <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Pago</div>
-                <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(monthlyStats.totalPaid)}</div>
+                <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{formatCurrency(periodStats.totalPaid)}</div>
               </div>
               <div className="text-center border-r border-gray-100 dark:border-gray-700">
                 <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Pendente</div>
-                <div className="text-xl font-bold text-rose-600 dark:text-rose-400">{formatCurrency(monthlyStats.totalPending)}</div>
+                <div className="text-xl font-bold text-rose-600 dark:text-rose-400">{formatCurrency(periodStats.totalPending)}</div>
               </div>
               <div className="text-center">
                 <div className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Progresso</div>
-                <div className="text-xl font-bold text-blue-600 dark:text-blue-400">{Math.round(monthlyStats.paymentProgress)}%</div>
+                <div className="text-xl font-bold text-blue-600 dark:text-blue-400">{Math.round(periodStats.paymentProgress)}%</div>
               </div>
             </div>
           </CardContent>
@@ -568,7 +686,7 @@ export default function ExpensesPage() {
               {/* Filtros na ordem solicitada */}
               <div className="flex gap-1.5">
                 {/* 1. Filtro por Mês */}
-                <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+                <Select value={selectedPeriod} onValueChange={handlePeriodChange}>
                   <SelectTrigger className="w-[120px] h-8 text-xs">
                     <SelectValue placeholder="Período" />
                   </SelectTrigger>
@@ -577,10 +695,31 @@ export default function ExpensesPage() {
                     <SelectItem value="next_month">Mês que vem</SelectItem>
                     <SelectItem value="last_month">Mês anterior</SelectItem>
                     <SelectItem value="current_year">Este ano</SelectItem>
-                    <SelectItem value="overdue">Em atraso</SelectItem>
+                    <SelectItem value="custom">Personalizado</SelectItem>
                     <SelectItem value="all">Todos os períodos</SelectItem>
                   </SelectContent>
                 </Select>
+
+                {/* Campos de data personalizada */}
+                {selectedPeriod === "custom" && (
+                  <div className="flex gap-1.5 items-center">
+                    <input
+                      type="date"
+                      value={customStartDate}
+                      onChange={(e) => setCustomStartDate(e.target.value)}
+                      className="h-8 text-xs px-2 border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                      placeholder="Data inicial"
+                    />
+                    <span className="text-xs text-gray-500 dark:text-gray-400">até</span>
+                    <input
+                      type="date"
+                      value={customEndDate}
+                      onChange={(e) => setCustomEndDate(e.target.value)}
+                      className="h-8 text-xs px-2 border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                      placeholder="Data final"
+                    />
+                  </div>
+                )}
 
                 {/* 2. Filtro por Categoria */}
                 <Select value={selectedCategory} onValueChange={setSelectedCategory}>

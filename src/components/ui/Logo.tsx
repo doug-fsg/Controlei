@@ -1,6 +1,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useOrganization } from '@/hooks/useOrganization'
+import { useMemo } from 'react'
 
 interface LogoProps {
   className?: string
@@ -26,42 +27,28 @@ export function Logo({ className = '', showText = true, size = 'md' }: LogoProps
   const config = sizeConfig[size]
   
   // Usar logo personalizada se disponível, senão usar padrão
-  const logoSrc = organization?.logoUrl || '/logo.png'
-  const logoAlt = organization?.name || 'Controlei'
+  const logoSrc = useMemo(() => organization?.logoUrl || '/logo.png', [organization?.logoUrl])
+  const logoAlt = useMemo(() => organization?.name || 'Controlei', [organization?.name])
   
-  // Se ainda está carregando, usar logo padrão
-  if (loading) {
-    return (
-      <Link href="/dashboard" className={`flex items-center gap-2 ${className}`}>
-        <Image
-          src="/logo.png"
-          alt="Controlei"
-          width={config.width}
-          height={config.height}
-          className="object-contain"
-          style={{ width: 'auto', height: 'auto' }}
-          priority
-        />
-        {showText && (
-          <span className={`font-semibold text-gray-900 ${textSizeClasses[size]}`}>
-            Controlei
-          </span>
-        )}
-      </Link>
-    )
-  }
-
   return (
     <Link href="/dashboard" className={`flex items-center gap-2 ${className}`}>
-      <Image
-        src={logoSrc}
-        alt={logoAlt}
-        width={config.width}
-        height={config.height}
-        className="object-contain"
-        style={{ width: 'auto', height: 'auto' }}
-        priority
-      />
+      <div className="relative flex items-center justify-center">
+        <Image
+          src={logoSrc}
+          alt={logoAlt}
+          width={config.width}
+          height={config.height}
+          className="object-contain max-w-full max-h-full"
+          style={{ 
+            width: 'auto', 
+            height: 'auto',
+            maxWidth: `${config.width}px`,
+            maxHeight: `${config.height}px`
+          }}
+          priority
+          unoptimized={logoSrc.startsWith('/uploads/')} // Não otimizar logos carregadas pelo usuário
+        />
+      </div>
       {showText && (
         <span className={`font-semibold text-gray-900 ${textSizeClasses[size]}`}>
           {organization?.name || 'Controlei'}
@@ -73,41 +60,31 @@ export function Logo({ className = '', showText = true, size = 'md' }: LogoProps
 
 // Componente apenas com ícone (para sidebar compacta)
 export function LogoIcon({ className = '' }: { className?: string }) {
-  const { organization, loading } = useOrganization()
+  const { organization } = useOrganization()
   
   // Para ícone, usar logo personalizada ou ícone padrão
-  const iconSrc = organization?.logoUrl || '/icon.png'
-  const iconAlt = organization?.name || 'Controlei'
-  
-  // Se ainda está carregando, usar ícone padrão
-  if (loading) {
-    console.log('🎨 [LogoIcon Component] Ainda carregando, usando ícone padrão')
-    return (
-      <Link href="/dashboard" className={`flex items-center justify-center ${className}`}>
-        <Image
-          src="/icon.png"
-          alt="Controlei"
-          width={32}
-          height={32}
-          className="h-8 w-8 object-contain"
-          style={{ width: 'auto', height: 'auto' }}
-          priority
-        />
-      </Link>
-    )
-  }
+  const iconSrc = useMemo(() => organization?.logoUrl || '/icon.png', [organization?.logoUrl])
+  const iconAlt = useMemo(() => organization?.name || 'Controlei', [organization?.name])
   
   return (
     <Link href="/dashboard" className={`flex items-center justify-center ${className}`}>
-      <Image
-        src={iconSrc}
-        alt={iconAlt}
-        width={32}
-        height={32}
-        className="h-8 w-8 object-contain"
-        style={{ width: 'auto', height: 'auto' }}
-        priority
-      />
+      <div className="relative flex items-center justify-center">
+        <Image
+          src={iconSrc}
+          alt={iconAlt}
+          width={32}
+          height={32}
+          className="object-contain max-w-full max-h-full"
+          style={{ 
+            width: 'auto', 
+            height: 'auto',
+            maxWidth: '32px',
+            maxHeight: '32px'
+          }}
+          priority
+          unoptimized={iconSrc.startsWith('/uploads/')} // Não otimizar logos carregadas pelo usuário
+        />
+      </div>
     </Link>
   )
 }

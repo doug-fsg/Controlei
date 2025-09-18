@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Logo, LogoIcon } from "@/components/ui/Logo";
+import { OrganizationSwitcher } from "./OrganizationSwitcher";
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
@@ -29,7 +30,21 @@ const navigation = [
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [isCollapsed, setIsCollapsed] = React.useState(false);
+  const [isCollapsed, setIsCollapsed] = React.useState(() => {
+    // Inicializar com o valor do localStorage ou false por padrão
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sidebar-collapsed');
+      return saved ? JSON.parse(saved) : false;
+    }
+    return false;
+  });
+
+  // Persistir o estado no localStorage sempre que mudar
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sidebar-collapsed', JSON.stringify(isCollapsed));
+    }
+  }, [isCollapsed]);
 
   const handleLogout = async () => {
     try {
@@ -54,13 +69,11 @@ export default function Sidebar() {
       )}
     >
       <div className={cn(
-        "flex h-16 items-center justify-between border-b px-4",
+        "flex h-16 items-center border-b px-4",
         "border-border dark:border-spotify-medium-gray spotify:border-spotify-medium-gray",
         isCollapsed ? "justify-center" : "justify-between"
       )}>
-        {isCollapsed ? (
-          <LogoIcon />
-        ) : (
+        {!isCollapsed && (
           <Logo size="md" showText={false} />
         )}
         <Button
@@ -76,6 +89,13 @@ export default function Sidebar() {
         >
           {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
         </Button>
+      </div>
+      
+      <div className={cn(
+        "px-4 py-2",
+        isCollapsed && "hidden"
+      )}>
+        <OrganizationSwitcher />
       </div>
       
       <nav className="flex-1 space-y-1 p-2">

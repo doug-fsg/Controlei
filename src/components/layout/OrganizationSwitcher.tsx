@@ -29,15 +29,24 @@ interface Organization {
   logoUrl?: string | null
 }
 
+// Cache global para evitar buscar organizações múltiplas vezes
+let organizationsCache: Organization[] | null = null
+let cacheInitialized = false
+
 export function OrganizationSwitcher() {
   const [open, setOpen] = useState(false)
-  const [organizations, setOrganizations] = useState<Organization[]>([])
-  const [loading, setLoading] = useState(true)
+  const [organizations, setOrganizations] = useState<Organization[]>(organizationsCache || [])
+  const [loading, setLoading] = useState(!cacheInitialized)
   const { organization: currentOrg, updateLogo } = useOrganization()
   const router = useRouter()
   const { toast } = useToast()
 
   useEffect(() => {
+    // Se já temos o cache e sabemos que há apenas uma organização, não buscar novamente
+    if (cacheInitialized && organizationsCache && organizationsCache.length <= 1) {
+      return
+    }
+
     const fetchOrganizations = async () => {
       try {
         const response = await fetch('/api/organizations/list')
@@ -46,6 +55,8 @@ export function OrganizationSwitcher() {
         }
         const data = await response.json()
         setOrganizations(data)
+        organizationsCache = data
+        cacheInitialized = true
       } catch (error) {
         console.error('Erro ao buscar organizações:', error)
         toast({
@@ -95,6 +106,11 @@ export function OrganizationSwitcher() {
     }
   }
 
+  // Se o usuário só tem uma organização, não mostrar o seletor
+  if (!loading && organizations.length <= 1) {
+    return null
+  }
+
   if (loading || !currentOrg) {
     return (
       <Button variant="outline" className="w-full justify-start opacity-70">
@@ -102,11 +118,6 @@ export function OrganizationSwitcher() {
         <span className="truncate">Carregando...</span>
       </Button>
     )
-  }
-
-  // Se o usuário só tem uma organização, não mostrar o seletor
-  if (organizations.length <= 1) {
-    return null
   }
 
   return (

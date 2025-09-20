@@ -30,21 +30,24 @@ const navigation = [
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [isCollapsed, setIsCollapsed] = React.useState(() => {
-    // Inicializar com o valor do localStorage ou false por padrão
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('sidebar-collapsed');
-      return saved ? JSON.parse(saved) : false;
+  const [isCollapsed, setIsCollapsed] = React.useState(false);
+  const [isMounted, setIsMounted] = React.useState(false);
+
+  // Sincronizar com localStorage após a montagem
+  React.useEffect(() => {
+    setIsMounted(true);
+    const saved = localStorage.getItem('sidebar-collapsed');
+    if (saved) {
+      setIsCollapsed(JSON.parse(saved));
     }
-    return false;
-  });
+  }, []);
 
   // Persistir o estado no localStorage sempre que mudar
   React.useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (isMounted) {
       localStorage.setItem('sidebar-collapsed', JSON.stringify(isCollapsed));
     }
-  }, [isCollapsed]);
+  }, [isCollapsed, isMounted]);
 
   const handleLogout = async () => {
     try {

@@ -15,7 +15,7 @@ const createSaleSchema = z.object({
   })).optional(),
   installments: z.object({
     remainingAmount: z.number().positive(),
-    numberOfInstallments: z.number().int().min(2),
+    numberOfInstallments: z.number().int().min(1),
     startDate: z.string().datetime(),
   }).optional(),
 })

@@ -368,6 +368,7 @@ export default function SalesPage() {
     try {
       await createSaleMutation.mutateAsync({
         ...data,
+        clientId: Number(data.clientId), // Converter para número
         saleDate: data.saleDate.toISOString(),
         advances: data.advances?.map(advance => ({
           amount: advance.amount,

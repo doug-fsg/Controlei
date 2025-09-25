@@ -12,11 +12,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Search, Edit, Trash2, Loader2, AlertCircle, Users, Calendar, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Plus, Search, Edit, Trash2, Loader2, AlertCircle, Users, Calendar, ArrowUpDown, ArrowUp, ArrowDown, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import ClientForm from "@/components/clients/ClientForm";
 import { useClients, useCreateClient, useUpdateClient, useDeleteClient } from "@/hooks/useClients";
+import { useSales } from "@/hooks/useSales";
 import { Client } from "@/types";
 
 type SortField = 'name' | 'email' | 'phone' | 'document' | 'createdAt';
@@ -28,17 +36,94 @@ export default function ClientsPage() {
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   
+  // Estados para filtros por data de criação
+  const [dateFilter, setDateFilter] = useState<string>('all');
+  const [customStartDate, setCustomStartDate] = useState<string>("");
+  const [customEndDate, setCustomEndDate] = useState<string>("");
+  
+  // Estado para filtro de clientes ativos
+  const [activeFilter, setActiveFilter] = useState<string>('all');
+  
   // Hooks da API
   const { data: clients = [], isLoading, error } = useClients();
+  const { data: sales = [] } = useSales();
   const createClientMutation = useCreateClient();
   const updateClientMutation = useUpdateClient();
   const deleteClientMutation = useDeleteClient();
 
-  const filteredClients = clients.filter((client: Client) =>
-    client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.document?.includes(searchTerm)
-  );
+  // Função para verificar se um cliente está ativo (tem pagamentos pendentes)
+  const isClientActive = (clientId: number) => {
+    const clientSales = sales.filter(sale => sale.clientId === clientId);
+    
+    // Verificar se alguma venda tem pagamentos pendentes
+    return clientSales.some(sale => 
+      sale.payments.some(payment => payment.status === 'PENDING')
+    );
+  };
+
+  // Função para lidar com mudanças no filtro de período
+  const handlePeriodChange = (period: string) => {
+    setDateFilter(period);
+    // Limpar datas personalizadas quando mudar de período
+    if (period !== "custom") {
+      setCustomStartDate("");
+      setCustomEndDate("");
+    }
+  };
+
+  const filteredClients = clients.filter((client: Client) => {
+    // Filtro de busca por texto
+    const matchesSearch = searchTerm === "" || 
+      client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      client.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      client.document?.includes(searchTerm);
+    
+    // Filtro por data de criação
+    let matchesDate = true;
+    if (dateFilter !== 'all') {
+      const clientDate = new Date(client.createdAt);
+      const now = new Date();
+      
+      if (dateFilter === 'current_month') {
+        matchesDate = clientDate.getMonth() === now.getMonth() && 
+                    clientDate.getFullYear() === now.getFullYear();
+      } else if (dateFilter === 'custom') {
+        if (customStartDate && customEndDate) {
+          // Criar datas locais para evitar problemas de timezone
+          const [startYear, startMonth, startDay] = customStartDate.split('-').map(Number);
+          const [endYear, endMonth, endDay] = customEndDate.split('-').map(Number);
+          
+          const startDate = new Date(startYear, startMonth - 1, startDay); // mês é 0-indexado
+          const endDate = new Date(endYear, endMonth - 1, endDay);
+          const clientDateOnly = new Date(clientDate.getFullYear(), clientDate.getMonth(), clientDate.getDate());
+          
+          matchesDate = clientDateOnly >= startDate && clientDateOnly <= endDate;
+        } else {
+          matchesDate = false; // Se não há datas definidas, não mostrar nada
+        }
+      } else {
+        const diffTime = Math.abs(now.getTime() - clientDate.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (dateFilter === 'today') matchesDate = diffDays === 0;
+        else if (dateFilter === 'week') matchesDate = diffDays <= 7;
+        else if (dateFilter === 'month') matchesDate = diffDays <= 30;
+      }
+    }
+    
+    // Filtro por status ativo
+    let matchesActive = true;
+    if (activeFilter !== 'all') {
+      const isActive = isClientActive(client.id);
+      if (activeFilter === 'active') {
+        matchesActive = isActive;
+      } else if (activeFilter === 'inactive') {
+        matchesActive = !isActive;
+      }
+    }
+    
+    return matchesSearch && matchesDate && matchesActive;
+  });
 
   // Função para ordenar os clientes
   const sortedClients = [...filteredClients].sort((a: Client, b: Client) => {
@@ -222,10 +307,14 @@ export default function ClientsPage() {
           <CardHeader>
             <div className="flex items-center justify-between mb-4">
               <CardTitle className="text-lg font-semibold">Lista de Clientes</CardTitle>
+              <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded-full">
+                {filteredClients.length} cliente{filteredClients.length !== 1 ? 's' : ''}
+              </span>
             </div>
             
-            {/* Busca integrada e sutil - estilo expenses */}
+            {/* Filtros - estilo expenses */}
             <div className="flex items-center gap-3 mb-4">
+              {/* Busca integrada e sutil */}
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
                 <Input
@@ -243,6 +332,72 @@ export default function ClientsPage() {
                   </button>
                 )}
               </div>
+
+              {/* Filtro por data de criação */}
+              <Select value={dateFilter} onValueChange={handlePeriodChange}>
+                <SelectTrigger className="h-8 text-xs w-32">
+                  <SelectValue placeholder="Período" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="current_month">Este mês</SelectItem>
+                  <SelectItem value="today">Hoje</SelectItem>
+                  <SelectItem value="week">Última semana</SelectItem>
+                  <SelectItem value="month">Último mês</SelectItem>
+                  <SelectItem value="custom">Personalizado</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Filtro por status ativo */}
+              <Select value={activeFilter} onValueChange={setActiveFilter}>
+                <SelectTrigger className="h-8 text-xs w-32">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="active">Ativos</SelectItem>
+                  <SelectItem value="inactive">Inativos</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              {/* Campos de data personalizada */}
+              {dateFilter === "custom" && (
+                <div className="flex gap-1.5 items-center">
+                  <input
+                    type="date"
+                    value={customStartDate}
+                    onChange={(e) => setCustomStartDate(e.target.value)}
+                    className="h-8 text-xs px-2 border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                    placeholder="Data inicial"
+                  />
+                  <span className="text-xs text-gray-500 dark:text-gray-400">até</span>
+                  <input
+                    type="date"
+                    value={customEndDate}
+                    onChange={(e) => setCustomEndDate(e.target.value)}
+                    className="h-8 text-xs px-2 border border-gray-200 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                    placeholder="Data final"
+                  />
+                </div>
+              )}
+
+              {/* Botão para resetar filtros */}
+              {(dateFilter !== "all" || searchTerm !== "" || activeFilter !== "all") && (
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => {
+                    setDateFilter("all");
+                    setSearchTerm("");
+                    setActiveFilter("all");
+                    setCustomStartDate("");
+                    setCustomEndDate("");
+                  }}
+                  className="text-xs h-8 px-2 text-gray-500 hover:text-gray-700"
+                >
+                  Resetar
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent>
@@ -309,9 +464,23 @@ export default function ClientsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedClients.map((client: Client) => (
-                    <TableRow key={client.id} className="spotify-hover">
-                      <TableCell className="font-medium">{client.name}</TableCell>
+                  {sortedClients.map((client: Client) => {
+                    const isActive = isClientActive(client.id);
+                    return (
+                      <TableRow key={client.id} className="spotify-hover">
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <Circle 
+                              className={cn(
+                                "h-2 w-2",
+                                isActive 
+                                  ? "text-green-500 fill-green-500" 
+                                  : "text-gray-300 fill-gray-300"
+                              )} 
+                            />
+                            {client.name}
+                          </div>
+                        </TableCell>
                       <TableCell>{client.email || '-'}</TableCell>
                       <TableCell>{client.phone || '-'}</TableCell>
                       <TableCell>{client.document || '-'}</TableCell>
@@ -357,13 +526,14 @@ export default function ClientsPage() {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             )}
             {!isLoading && sortedClients.length === 0 && (
               <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                {searchTerm ? "Nenhum cliente encontrado com os filtros aplicados" : "Nenhum cliente cadastrado"}
+                {searchTerm || dateFilter !== "all" || activeFilter !== "all" ? "Nenhum cliente encontrado com os filtros aplicados" : "Nenhum cliente cadastrado"}
               </div>
             )}
           </CardContent>

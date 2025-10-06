@@ -25,10 +25,10 @@ export function ProtectedRoute({ children, fallback }: ProtectedRouteProps) {
   // Ainda carregando
   if (status === 'loading') {
     return fallback || (
-      <div className="flex min-h-screen items-center justify-center">
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Verificando autenticação...</p>
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-spotify-green mx-auto mb-3"></div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Carregando...</p>
         </div>
       </div>
     )

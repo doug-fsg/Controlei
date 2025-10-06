@@ -28,14 +28,54 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useCashFlow, type CashFlowFilters, type CashFlowItem } from "@/hooks/useCashFlow";
 import { useCategories } from "@/hooks/useCategories";
 
+// Função para calcular datas do período
+const getPeriodDates = (period: string) => {
+  const now = new Date();
+  let dateFrom = '';
+  let dateTo = '';
+  
+  switch (period) {
+    case 'today':
+      dateFrom = dateTo = now.toISOString().split('T')[0];
+      break;
+    case 'week':
+      const startOfWeek = new Date(now);
+      startOfWeek.setDate(now.getDate() - now.getDay());
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      dateFrom = startOfWeek.toISOString().split('T')[0];
+      dateTo = endOfWeek.toISOString().split('T')[0];
+      break;
+    case 'month':
+      dateFrom = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+      dateTo = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+      break;
+    case 'quarter':
+      const quarterStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
+      const quarterEnd = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3 + 3, 0);
+      dateFrom = quarterStart.toISOString().split('T')[0];
+      dateTo = quarterEnd.toISOString().split('T')[0];
+      break;
+    case 'year':
+      dateFrom = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
+      dateTo = new Date(now.getFullYear(), 11, 31).toISOString().split('T')[0];
+      break;
+  }
+  
+  return { dateFrom, dateTo };
+};
+
 // Estado inicial dos filtros
-const initialFilters: CashFlowFilters = {
-  type: 'ALL',
-  status: 'ALL',
-  period: 'month',
-  dateFrom: '',
-  dateTo: '',
-}
+const getInitialFilters = (): CashFlowFilters => {
+  const { dateFrom, dateTo } = getPeriodDates('month');
+  return {
+    type: 'ALL',
+    status: 'ALL',
+    period: 'month',
+    dateFrom,
+    dateTo,
+  };
+};
 
 // Função para calcular severidade da inadimplência
 const calculateSeverity = (daysOverdue: number) => {
@@ -45,8 +85,8 @@ const calculateSeverity = (daysOverdue: number) => {
 };
 
 export default function ReportsPage() {
-  const [filters, setFilters] = useState<CashFlowFilters>(initialFilters);
-  const [tempFilters, setTempFilters] = useState<CashFlowFilters>(initialFilters);
+  const [filters, setFilters] = useState<CashFlowFilters>(getInitialFilters());
+  const [tempFilters, setTempFilters] = useState<CashFlowFilters>(getInitialFilters());
   const [showDetails, setShowDetails] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState('month');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
@@ -112,35 +152,7 @@ export default function ReportsPage() {
   
   // Função para definir período rapidamente
   const setQuickPeriod = (period: string) => {
-    const now = new Date();
-    let dateFrom = '';
-    let dateTo = '';
-    
-    switch (period) {
-      case 'today':
-        dateFrom = dateTo = now.toISOString().split('T')[0];
-        break;
-      case 'week':
-        const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
-        const endOfWeek = new Date(now.setDate(now.getDate() - now.getDay() + 6));
-        dateFrom = startOfWeek.toISOString().split('T')[0];
-        dateTo = endOfWeek.toISOString().split('T')[0];
-        break;
-      case 'month':
-        dateFrom = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-        dateTo = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
-        break;
-      case 'quarter':
-        const quarterStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
-        const quarterEnd = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3 + 3, 0);
-        dateFrom = quarterStart.toISOString().split('T')[0];
-        dateTo = quarterEnd.toISOString().split('T')[0];
-        break;
-      case 'year':
-        dateFrom = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
-        dateTo = new Date(now.getFullYear(), 11, 31).toISOString().split('T')[0];
-        break;
-    }
+    const { dateFrom, dateTo } = getPeriodDates(period);
     
     const newFilters = { ...tempFilters, dateFrom, dateTo, period: period as 'week' | 'month' | 'quarter' | 'year' };
     setTempFilters(newFilters);
@@ -150,8 +162,9 @@ export default function ReportsPage() {
   
   // Função para limpar filtros
   const clearFilters = () => {
-    setTempFilters(initialFilters);
-    setFilters(initialFilters);
+    const initial = getInitialFilters();
+    setTempFilters(initial);
+    setFilters(initial);
     setSelectedPeriod('month');
   };
 
@@ -314,10 +327,10 @@ export default function ReportsPage() {
                         <div className="flex flex-wrap gap-1">
                           {[
                             { key: 'today', label: 'Hoje' },
-                            { key: 'week', label: 'Semana' },
-                            { key: 'month', label: 'Mês' },
+                            { key: 'week', label: 'Esta Semana' },
+                            { key: 'month', label: 'Este Mês' },
                             { key: 'quarter', label: 'Trimestre' },
-                            { key: 'year', label: 'Ano' },
+                            { key: 'year', label: 'Este Ano' },
                           ].map(period => (
                             <Button
                               key={period.key}

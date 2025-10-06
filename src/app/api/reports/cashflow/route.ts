@@ -182,6 +182,22 @@ export async function GET(request: NextRequest) {
     const totalExpenses = expenseItems.reduce((sum, item) => sum + item.amount, 0)
     const netFlow = totalIncome - totalExpenses
 
+    // Calcular total de vendas (valor total das vendas, incluindo parceladas)
+    const totalSales = await prisma.sale.aggregate({
+      where: {
+        userId,
+        organizationId: organization.id,
+        saleDate: {
+          gte: startDate,
+          lte: endDate,
+        },
+        ...(type === 'EXPENSE' ? { id: -1 } : {}), // Excluir se só quiser despesas
+      },
+      _sum: {
+        totalAmount: true,
+      },
+    })
+
     // Calcular saldo acumulado
     let runningBalance = 0
     const itemsWithBalance = allItems.map(item => {
@@ -299,6 +315,7 @@ export async function GET(request: NextRequest) {
       summary: {
         totalIncome,
         totalExpenses,
+        totalSales: totalSales._sum.totalAmount || 0,
         netFlow,
         pendingIncome,
         pendingExpenses,

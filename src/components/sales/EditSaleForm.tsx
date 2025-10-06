@@ -14,14 +14,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
   Table,
   TableBody,
   TableCell,
@@ -29,10 +21,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Check, ChevronsUpDown, AlertTriangle, CheckCircle, Loader2, X } from "lucide-react";
+import { AlertTriangle, CheckCircle, Loader2, X, CreditCard, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sale, Client } from "@/types";
-import { useClients } from "@/hooks/useClients";
+import EditPaymentManager from "./EditPaymentManager";
 
 interface EditSaleFormProps {
   sale: Sale | null;
@@ -42,9 +34,7 @@ interface EditSaleFormProps {
 }
 
 export default function EditSaleForm({ sale, onSave, onClose, isLoading = false }: EditSaleFormProps) {
-  const { data: clients = [] } = useClients();
   const [formData, setFormData] = useState({
-    clientId: "",
     totalAmount: "",
     saleDate: "",
     notes: "",
@@ -54,13 +44,20 @@ export default function EditSaleForm({ sale, onSave, onClose, isLoading = false 
   const [showWarnings, setShowWarnings] = useState(false);
   const [hasPayments, setHasPayments] = useState(false);
   const [hasPaidPayments, setHasPaidPayments] = useState(false);
-  const [showAdvancedMode, setShowAdvancedMode] = useState(false);
+  const [showPaymentEditor, setShowPaymentEditor] = useState(false);
+  const [showPaymentWarningModal, setShowPaymentWarningModal] = useState(false);
+  const [paymentData, setPaymentData] = useState<{
+    advances: Array<{ id?: number; amount: number; dueDate: string }>;
+    installments: { remainingAmount: number; numberOfInstallments: number; startDate: string } | null;
+  }>({
+    advances: [],
+    installments: null,
+  });
 
   // Inicializar formulário quando sale muda
   useEffect(() => {
     if (sale) {
       setFormData({
-        clientId: sale.clientId?.toString() || "",
         totalAmount: sale.totalAmount.toString(),
         saleDate: new Date(sale.saleDate).toISOString().split('T')[0],
         notes: sale.notes || "",
@@ -90,17 +87,37 @@ export default function EditSaleForm({ sale, onSave, onClose, isLoading = false 
       }
     }
 
+    // Verificar se está editando parcelas e há pagamentos já realizados
+    if (showPaymentEditor && hasPaidPayments) {
+      if (!showPaymentWarningModal) {
+        setShowPaymentWarningModal(true);
+        return;
+      }
+    }
+
     const updateData = {
       id: sale.id.toString(),
       data: {
-        clientId: parseInt(formData.clientId),
         totalAmount: newTotalAmount,
         saleDate: new Date(formData.saleDate).toISOString(),
         notes: formData.notes || undefined,
+        ...(showPaymentEditor && {
+          advances: paymentData.advances,
+          installments: paymentData.installments,
+        }),
       },
     };
 
     onSave(updateData);
+  };
+
+  const handleConfirmPaymentChanges = () => {
+    setShowPaymentWarningModal(false);
+    // Re-executar o submit após confirmação
+    const form = document.querySelector('form');
+    if (form) {
+      form.requestSubmit();
+    }
   };
 
   const handleChange = (field: string, value: string) => {
@@ -114,14 +131,31 @@ export default function EditSaleForm({ sale, onSave, onClose, isLoading = false 
   // Validações em tempo real
   const getValidationStatus = () => {
     const newAmount = parseFloat(formData.totalAmount) || 0;
-    const hasChanges = (
-      formData.clientId !== sale?.clientId?.toString() ||
+    const hasBasicChanges = (
       newAmount !== originalTotalAmount ||
       formData.saleDate !== new Date(sale?.saleDate || '').toISOString().split('T')[0] ||
       formData.notes !== (sale?.notes || '')
     );
 
-    const isValid = formData.clientId && formData.totalAmount && formData.saleDate;
+    // Verificar se há mudanças nas parcelas
+    const originalPendingPayments = sale?.payments?.filter(p => p.status === 'PENDING') || [];
+    const originalAdvances = originalPendingPayments
+      .filter(p => p.type === 'ADVANCE')
+      .map(p => ({
+        amount: p.amount,
+        dueDate: new Date(p.dueDate).toISOString().split('T')[0],
+      }));
+    
+    const originalInstallments = originalPendingPayments.filter(p => p.type === 'INSTALLMENT');
+    const hasOriginalInstallments = originalInstallments.length > 0;
+    
+    const hasPaymentChanges = showPaymentEditor && (
+      JSON.stringify(paymentData.advances) !== JSON.stringify(originalAdvances) ||
+      (paymentData.installments !== null) !== hasOriginalInstallments
+    );
+
+    const hasChanges = hasBasicChanges || hasPaymentChanges;
+    const isValid = formData.totalAmount && formData.saleDate;
     
     return { hasChanges, isValid, newAmount };
   };
@@ -159,60 +193,18 @@ export default function EditSaleForm({ sale, onSave, onClose, isLoading = false 
   const validationStatus = getValidationStatus();
 
   return (
+    <>
     <Dialog open={!!sale} onOpenChange={() => onClose()}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               Editar Venda
-              {hasPayments && (
-                <Badge variant="outline" className="text-xs">
-                  {sale.payments?.length} pagamento{(sale.payments?.length || 0) !== 1 ? 's' : ''}
-                </Badge>
-              )}
             </div>
-            {hasPayments && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowAdvancedMode(!showAdvancedMode)}
-                className="text-xs"
-              >
-                {showAdvancedMode ? 'Modo Simples' : 'Modo Avançado'}
-              </Button>
-            )}
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Informações da Venda Original */}
-          <Card className="bg-gray-50 dark:bg-gray-800/50">
-            <CardHeader>
-              <CardTitle className="text-sm">Informações Atuais</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="font-medium">Cliente:</span> {sale.client?.name}
-              </div>
-              <div>
-                <span className="font-medium">Valor:</span> {formatCurrency(sale.totalAmount)}
-              </div>
-              <div>
-                <span className="font-medium">Data:</span> {formatDate(sale.saleDate)}
-              </div>
-              <div>
-                <span className="font-medium">Status:</span>
-                {!hasPayments ? (
-                  <Badge className="ml-2 bg-green-600 text-white">Venda à Vista</Badge>
-                ) : (
-                  <Badge className="ml-2" variant="outline">
-                    {paymentsSummary.paidCount} pago{paymentsSummary.paidCount !== 1 ? 's' : ''}, {paymentsSummary.pendingCount} pendente{paymentsSummary.pendingCount !== 1 ? 's' : ''}
-                  </Badge>
-                )}
-              </div>
-            </CardContent>
-          </Card>
 
           {/* Avisos sobre Alterações */}
           {showWarnings && hasPayments && (
@@ -247,46 +239,10 @@ export default function EditSaleForm({ sale, onSave, onClose, isLoading = false 
           {/* Formulário de Edição */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="client">Cliente *</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    role="combobox"
-                    className="w-full justify-between"
-                  >
-                    {formData.clientId
-                      ? clients.find((client) => client.id.toString() === formData.clientId)?.name
-                      : "Selecione um cliente"}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[300px] p-0">
-                  <Command>
-                    <CommandInput placeholder="Pesquisar cliente..." />
-                    <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
-                    <CommandGroup>
-                      {clients.map((client) => (
-                        <CommandItem
-                          key={client.id}
-                          value={client.name}
-                          onSelect={() => {
-                            handleChange("clientId", client.id.toString());
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              formData.clientId === client.id.toString() ? "opacity-100" : "opacity-0"
-                            )}
-                          />
-                          {client.name}
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+              <Label>Cliente</Label>
+              <div className="flex items-center h-10 px-3 py-2 text-sm border border-input bg-muted rounded-md">
+                {sale.client?.name || 'Cliente não informado'}
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -427,25 +383,6 @@ export default function EditSaleForm({ sale, onSave, onClose, isLoading = false 
                   </div>
                 )}
 
-                {/* Alerta sobre mudança de cliente com pagamentos pagos */}
-                {formData.clientId !== sale.clientId?.toString() && hasPaidPayments && (
-                  <div className="mt-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-                    <div className="flex items-start gap-2">
-                      <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5" />
-                      <div className="text-sm">
-                        <p className="font-medium text-red-800 dark:text-red-200">
-                          ⚠️ Alteração de Cliente com Pagamentos Recebidos
-                        </p>
-                        <p className="text-red-700 dark:text-red-300 mt-1">
-                          Esta venda já possui pagamentos recebidos. Alterar o cliente pode causar problemas contábeis.
-                        </p>
-                        <p className="text-red-700 dark:text-red-300 mt-1">
-                          <strong>Sugestão:</strong> Considere criar uma nova venda para o novo cliente.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </CardContent>
             </Card>
           )}
@@ -469,34 +406,43 @@ export default function EditSaleForm({ sale, onSave, onClose, isLoading = false 
             </Card>
           )}
 
-          {showAdvancedMode && hasPayments && (
-            <Card className="bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800">
-              <CardContent className="pt-6">
-                <div className="flex items-start gap-3">
-                  <AlertTriangle className="h-5 w-5 text-purple-600 mt-0.5" />
-                  <div>
-                    <h4 className="font-medium text-purple-800 dark:text-purple-200">
-                      Modo Avançado Ativado
-                    </h4>
-                    <div className="text-sm text-purple-700 dark:text-purple-300 mt-1 space-y-1">
-                      <p>• Para alterar valores de pagamentos específicos, use a tela de detalhes da venda</p>
-                      <p>• Alterações no valor total podem criar inconsistências</p>
-                      <p>• Considere criar uma nova venda se as mudanças forem muito grandes</p>
-                    </div>
-                  </div>
+
+          {/* Editor de Parcelas */}
+          {hasPayments && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="h-5 w-5" />
+                    Gerenciar Parcelas
+                  </CardTitle>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowPaymentEditor(!showPaymentEditor)}
+                  >
+                    {showPaymentEditor ? 'Ocultar Editor' : 'Editar Parcelas'}
+                  </Button>
                 </div>
-              </CardContent>
+              </CardHeader>
+              {showPaymentEditor && (
+                <CardContent>
+                  <EditPaymentManager
+                    totalAmount={parseFloat(formData.totalAmount) || sale.totalAmount}
+                    existingPayments={sale.payments || []}
+                    onPaymentsChange={(advances, installments) => {
+                      setPaymentData({ advances, installments });
+                    }}
+                  />
+                </CardContent>
+              )}
             </Card>
           )}
 
           {/* Ações */}
           <div className="flex justify-between items-center pt-4 border-t">
             <div className="text-xs text-gray-500 dark:text-gray-400">
-              {hasPayments ? (
-                <>
-                  💡 Dica: Para editar pagamentos individuais, use a tela de detalhes da venda
-                </>
-              ) : (
+              {!hasPayments && (
                 <>
                   ✅ Venda à vista - edição segura
                 </>
@@ -535,5 +481,49 @@ export default function EditSaleForm({ sale, onSave, onClose, isLoading = false 
         </form>
       </DialogContent>
     </Dialog>
+
+    {/* Modal de Aviso para Edição de Parcelas com Pagamentos */}
+    <Dialog open={showPaymentWarningModal} onOpenChange={setShowPaymentWarningModal}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-amber-500" />
+            Editar Parcelas com Pagamentos
+          </DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          <div className="text-sm text-gray-600 space-y-3">
+            <p>
+              Esta venda possui <strong>{(sale?.payments?.filter(p => p.status === 'PAID').length || 0)} pagamento{(sale?.payments?.filter(p => p.status === 'PAID').length || 0) !== 1 ? 's' : ''}</strong> já realizado{(sale?.payments?.filter(p => p.status === 'PAID').length || 0) !== 1 ? 's' : ''}.
+            </p>
+            
+            <div className="bg-gray-50 rounded-lg p-3">
+              <p className="font-medium text-gray-800 mb-2">Ao editar parcelas:</p>
+              <ul className="text-xs text-gray-600 space-y-1">
+                <li>• Todas as parcelas existentes serão substituídas</li>
+                <li>• Parcelas já pagas serão removidas do sistema</li>
+                <li>• Novas parcelas serão criadas como PENDENTE</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        
+        <div className="flex justify-end gap-3 pt-4 border-t">
+          <Button 
+            variant="outline" 
+            onClick={() => setShowPaymentWarningModal(false)}
+          >
+            Cancelar
+          </Button>
+          <Button 
+            onClick={handleConfirmPaymentChanges}
+          >
+            Estou ciente
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  </>
   );
 }

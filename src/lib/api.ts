@@ -116,10 +116,19 @@ export const salesApi = {
   }),
 
   update: (id: string, data: {
-    clientId?: number
     totalAmount?: number
     saleDate?: string
     notes?: string
+    advances?: Array<{
+      id?: number
+      amount: number
+      dueDate: string
+    }>
+    installments?: {
+      remainingAmount: number
+      numberOfInstallments: number
+      startDate: string
+    }
   }) => apiCall<Sale>(`/sales/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),

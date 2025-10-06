@@ -26,6 +26,7 @@ interface CashFlowItem {
 interface CashFlowSummary {
   totalIncome: number
   totalExpenses: number
+  totalSales: number
   netFlow: number
   pendingIncome: number
   pendingExpenses: number

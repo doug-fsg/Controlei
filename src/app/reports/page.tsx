@@ -144,6 +144,7 @@ export default function ReportsPage() {
     
     const newFilters = { ...tempFilters, dateFrom, dateTo, period: period as 'week' | 'month' | 'quarter' | 'year' };
     setTempFilters(newFilters);
+    setFilters(newFilters); // Aplicar automaticamente os filtros
     setSelectedPeriod(period);
   };
   
@@ -362,7 +363,7 @@ export default function ReportsPage() {
                           disabled={dataWithBalance.length === 0}
                         >
                           <Download className="h-3 w-3 mr-1" />
-                          CSV
+                          Exportar
                         </Button>
                       </div>
                     </div>
@@ -476,7 +477,30 @@ export default function ReportsPage() {
                 </Card>
 
                                 {/* KPIs Principais - Compactos */}
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <Card className="spotify-hover">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs font-medium text-muted-foreground">Total de Vendas</p>
+                          <div className={cn(
+                            "text-lg font-bold",
+                            "text-blue-600 dark:text-blue-400"
+                          )}>
+                            {formatCurrency(summary?.totalSales || 0)}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Valor total das vendas
+                          </p>
+                        </div>
+                        <BarChart3 className={cn(
+                          "h-5 w-5",
+                          "text-blue-600 dark:text-blue-400"
+                        )} />
+                      </div>
+                    </CardContent>
+                  </Card>
+
                   <Card className="spotify-hover">
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">

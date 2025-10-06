@@ -225,6 +225,7 @@ export const expensesApi = {
 // API do Dashboard
 export const dashboardApi = {
   getStats: () => apiCall<{
+    totalSales: number
     totalIncome: number
     totalExpenses: number
     netBalance: number

@@ -1,48 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { requireAuth } from '@/lib/auth-utils'
+import { requireAuth, getCurrentOrganization } from '@/lib/auth-utils'
+import { calculateFinancialTotals } from '@/lib/calculations'
 
 // GET /api/dashboard - Buscar dados agregados do dashboard
 export async function GET(request: NextRequest) {
   try {
     const userId = await requireAuth()
+    const organization = await getCurrentOrganization()
+    
+    if (!organization) {
+      return NextResponse.json(
+        { error: 'Organização não encontrada' },
+        { status: 400 }
+      )
+    }
 
     // Calcular período do mês atual
     const now = new Date()
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+    
 
-    // Buscar dados em paralelo
-    const [sales, expenses, clients, recentSales, recentExpenses] = await Promise.all([
-      // Vendas do mês atual
-      prisma.sale.findMany({
-        where: {
-          userId,
-          saleDate: {
-            gte: startOfMonth,
-            lte: endOfMonth,
-          },
-        },
-        include: {
-          client: true,
-          payments: true,
-        },
-      }),
+    // Calcular totais financeiros usando função compartilhada
+    const financialTotals = await calculateFinancialTotals(
+      userId,
+      organization.id,
+      startOfMonth,
+      endOfMonth,
+      undefined,
+      'month'
+    )
 
-      // Despesas do mês atual
-      prisma.expense.findMany({
-        where: {
-          userId,
-          dueDate: {
-            gte: startOfMonth,
-            lte: endOfMonth,
-          },
-        },
-        include: {
-          category: true,
-        },
-      }),
-
+    // Buscar dados adicionais em paralelo
+    const [clients, recentSales, recentExpenses] = await Promise.all([
       // Total de clientes
       prisma.client.count({
         where: { userId },
@@ -73,47 +64,6 @@ export async function GET(request: NextRequest) {
         take: 5,
       }),
     ])
-
-    // Calcular totais de vendas RECEBIDAS no mês atual
-    const totalIncome = sales.reduce((sum, sale) => {
-      // Se não há pagamentos, é venda à vista (valor total recebido)
-      if (!sale.payments || sale.payments.length === 0) {
-        return sum + sale.totalAmount
-      }
-      // Se há pagamentos, somar apenas os pagos
-      const paidPayments = sale.payments.filter(p => p.status === 'PAID')
-      return sum + paidPayments.reduce((pSum, p) => pSum + p.amount, 0)
-    }, 0)
-    
-    // Manter compatibilidade com código existente
-    const totalIncomeReceived = totalIncome
-    
-    // Calcular pendências apenas de pagamentos que vencem neste mês
-    const pendingIncome = await prisma.salePayment.aggregate({
-      where: {
-        sale: { userId },
-        status: 'PENDING',
-        dueDate: {
-          gte: startOfMonth,
-          lte: endOfMonth,
-        },
-      },
-      _sum: {
-        amount: true,
-      },
-    }).then(result => result._sum.amount || 0)
-
-    // Calcular totais de despesas do mês atual
-    const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0)
-    const totalExpensesPaid = expenses
-      .filter(expense => expense.status === 'PAID')
-      .reduce((sum, expense) => sum + expense.amount, 0)
-    const pendingExpenses = expenses
-      .filter(expense => expense.status === 'PENDING')
-      .reduce((sum, expense) => sum + expense.amount, 0)
-
-    // Calcular saldo líquido
-    const netBalance = totalIncomeReceived - totalExpensesPaid
 
     // Contar pagamentos em atraso
     const overduePayments = await prisma.salePayment.count({
@@ -168,11 +118,12 @@ export async function GET(request: NextRequest) {
     }))
 
     const dashboardData = {
-      totalIncome,
-      totalExpenses,
-      netBalance,
-      pendingIncome,
-      pendingExpenses,
+      totalSales: financialTotals.totalSales,
+      totalIncome: financialTotals.totalIncome,
+      totalExpenses: financialTotals.totalExpenses,
+      netBalance: financialTotals.netFlow,
+      pendingIncome: financialTotals.pendingIncome,
+      pendingExpenses: financialTotals.pendingExpenses,
       overduePayments,
       totalClients: clients,
       recentSales: transformedRecentSales,

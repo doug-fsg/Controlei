@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAuth, getCurrentOrganization } from '@/lib/auth-utils'
+import { calculateFinancialTotals } from '@/lib/calculations'
 
 export async function GET(request: NextRequest) {
   try {
@@ -48,8 +49,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Usar datas personalizadas se fornecidas
-    if (dateFrom) startDate = new Date(dateFrom)
-    if (dateTo) endDate = new Date(dateTo)
+    if (dateFrom) {
+      startDate = new Date(dateFrom)
+      startDate.setHours(0, 0, 0, 0) // Início do dia
+    }
+    if (dateTo) {
+      endDate = new Date(dateTo)
+      endDate.setHours(23, 59, 59, 999) // Fim do dia
+    }
 
     // Buscar pagamentos (entradas) que foram efetivados no período
     const payments = await prisma.salePayment.findMany({
@@ -70,7 +77,7 @@ export async function GET(request: NextRequest) {
           },
           // Pagamentos que foram efetivados no período (independente do vencimento)
           ...(status !== 'PENDING' ? [{
-            status: 'PAID',
+            status: 'PAID' as const,
             paidDate: {
               gte: startDate,
               lte: endDate,
@@ -110,15 +117,36 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    // Buscar despesas (saídas)
+    // Buscar despesas (saídas) - incluindo despesas fixas que devem aparecer no período
     const expenses = await prisma.expense.findMany({
       where: {
-        userId,
-        organizationId: organization.id,
-        dueDate: {
-          gte: startDate,
-          lte: endDate,
-        },
+        AND: [
+          {
+            OR: [
+              { organizationId: organization.id },
+              { organizationId: null, userId }
+            ]
+          },
+          {
+            OR: [
+              // Despesas que vencem no período
+              {
+                dueDate: {
+                  gte: startDate,
+                  lte: endDate,
+                },
+              },
+              // Despesas fixas que devem ser consideradas para o período
+              {
+                isRecurring: true,
+                OR: [
+                  { recurringEndDate: null },
+                  { recurringEndDate: { gte: startDate } }
+                ]
+              }
+            ]
+          }
+        ],
         ...(type === 'INCOME' ? { id: -1 } : {}), // Excluir se só quiser entradas
         ...(categoryId ? { categoryId: parseInt(categoryId) } : {}), // Filtrar por categoria se especificado
       },
@@ -158,15 +186,91 @@ export async function GET(request: NextRequest) {
       }))
     ]
 
+    let generatedExpenses: any[] = [...expenses]
+    
+    // Só gerar despesas recorrentes se não for o filtro "Hoje"
+    if (period !== 'today') {
+      // Buscar TODAS as despesas fixas (independente do período)
+      const recurringExpenses = await prisma.expense.findMany({
+        where: {
+          OR: [
+            { organizationId: organization.id },
+            { organizationId: null, userId }
+          ],
+          isRecurring: true,
+          AND: [
+            {
+              OR: [
+                { recurringEndDate: null },
+                { recurringEndDate: { gte: startDate } }
+              ]
+            }
+          ],
+          ...(type === 'INCOME' ? { id: -1 } : {}),
+        },
+        include: {
+          category: true,
+        },
+      })
+      
+      for (const recurringExpense of recurringExpenses) {
+      // Calcular a data de vencimento para o período atual
+      let dueDate = new Date()
+      
+      if (recurringExpense.recurringFrequency === 'MONTHLY') {
+        // Para despesas mensais, usar o mês atual com o dia original
+        if (recurringExpense.recurringDayOfMonth) {
+          dueDate.setDate(recurringExpense.recurringDayOfMonth)
+        } else {
+          // Se não tem dia específico, usar o dia da despesa original
+          dueDate.setDate(recurringExpense.dueDate.getDate())
+        }
+      } else if (recurringExpense.recurringFrequency === 'WEEKLY') {
+        // Para despesas semanais, manter o mesmo dia da semana
+        const originalDayOfWeek = recurringExpense.dueDate.getDay()
+        const daysToAdd = (originalDayOfWeek - dueDate.getDay() + 7) % 7
+        dueDate.setDate(dueDate.getDate() + daysToAdd)
+      } else if (recurringExpense.recurringFrequency === 'YEARLY') {
+        // Para despesas anuais, usar o mesmo dia e mês do ano atual
+        dueDate.setMonth(recurringExpense.dueDate.getMonth())
+        dueDate.setDate(recurringExpense.dueDate.getDate())
+      }
+      
+      // Verificar se a data calculada está dentro do período
+      if (dueDate >= startDate && dueDate <= endDate) {
+        // Verificar se já existe uma despesa gerada para este período específico
+        const existingGeneratedExpense = generatedExpenses.find(e => 
+          e.description === recurringExpense.description &&
+          e.amount === recurringExpense.amount &&
+          e.dueDate.getTime() === dueDate.getTime() &&
+          e.id.toString().startsWith('generated_')
+        )
+        
+        if (!existingGeneratedExpense) {
+          const generatedExpense = {
+            ...recurringExpense,
+            id: `generated_${recurringExpense.id}_${dueDate.getTime()}`,
+            dueDate: dueDate,
+            status: 'PENDING' as const,
+            installments: 1,
+            isRecurring: false
+          }
+          
+          generatedExpenses.push(generatedExpense)
+        }
+      }
+    }
+    }
+
     // Transformar despesas em itens de fluxo de caixa
-    const expenseItems = expenses.map(expense => ({
-      id: `expense_${expense.id}`,
+    const expenseItems = generatedExpenses.map(expense => ({
+      id: expense.id.toString().startsWith('generated_') ? expense.id : `expense_${expense.id}`,
       type: 'EXPENSE' as const,
       description: `${expense.description}${expense.category ? ` - ${expense.category.name}` : ''}`,
       amount: expense.amount,
       dueDate: expense.dueDate,
       status: expense.status as 'PAID' | 'PENDING',
-      clientOrSupplier: expense.supplier || 'Fornecedor',
+      clientOrSupplier: 'Fornecedor',
       category: expense.category?.name || 'Despesas',
       saleId: null,
       paymentId: null,
@@ -177,26 +281,23 @@ export async function GET(request: NextRequest) {
       new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
     )
 
-    // Calcular totais
-    const totalIncome = incomeItems.reduce((sum, item) => sum + item.amount, 0)
-    const totalExpenses = expenseItems.reduce((sum, item) => sum + item.amount, 0)
-    const netFlow = totalIncome - totalExpenses
 
-    // Calcular total de vendas (valor total das vendas, incluindo parceladas)
-    const totalSales = await prisma.sale.aggregate({
-      where: {
-        userId,
-        organizationId: organization.id,
-        saleDate: {
-          gte: startDate,
-          lte: endDate,
-        },
-        ...(type === 'EXPENSE' ? { id: -1 } : {}), // Excluir se só quiser despesas
-      },
-      _sum: {
-        totalAmount: true,
-      },
-    })
+    // Calcular totais usando função compartilhada
+    const financialTotals = await calculateFinancialTotals(
+      userId,
+      organization.id,
+      startDate,
+      endDate,
+      type,
+      period
+    )
+
+    const totalIncome = financialTotals.totalIncome
+    const totalExpenses = financialTotals.totalExpenses
+    const netFlow = financialTotals.netFlow
+    const totalSales = financialTotals.totalSales
+    const pendingIncome = financialTotals.pendingIncome
+    const pendingExpenses = financialTotals.pendingExpenses
 
     // Calcular saldo acumulado
     let runningBalance = 0
@@ -240,13 +341,6 @@ export async function GET(request: NextRequest) {
     )
 
     // Calcular métricas adicionais
-    const pendingIncome = incomeItems
-      .filter(item => item.status === 'PENDING')
-      .reduce((sum, item) => sum + item.amount, 0)
-
-    const pendingExpenses = expenseItems
-      .filter(item => item.status === 'PENDING')
-      .reduce((sum, item) => sum + item.amount, 0)
 
     const overdueItems = itemsWithBalance.filter(item => 
       item.status === 'PENDING' && new Date(item.dueDate) < new Date()
@@ -283,20 +377,107 @@ export async function GET(request: NextRequest) {
       // Buscar despesas para este mês (incluindo recorrentes)
       const monthExpenses = await prisma.expense.findMany({
         where: {
-          userId,
-          organizationId: organization.id,
-          dueDate: {
-            gte: monthStart,
-            lte: monthEnd,
-          },
+          AND: [
+            {
+              OR: [
+                { organizationId: organization.id },
+                { organizationId: null, userId }
+              ]
+            },
+            {
+              OR: [
+                // Despesas que vencem no período
+                {
+                  dueDate: {
+                    gte: monthStart,
+                    lte: monthEnd,
+                  },
+                },
+                // Despesas fixas que devem ser consideradas para o período
+                {
+                  isRecurring: true,
+                  OR: [
+                    { recurringEndDate: null },
+                    { recurringEndDate: { gte: monthStart } }
+                  ]
+                }
+              ]
+            }
+          ]
         },
       })
+
+      // Gerar despesas recorrentes para este mês
+      const recurringExpenses = await prisma.expense.findMany({
+        where: {
+          AND: [
+            {
+              OR: [
+                { organizationId: organization.id },
+                { organizationId: null, userId }
+              ]
+            },
+            {
+              isRecurring: true,
+              OR: [
+                { recurringEndDate: null },
+                { recurringEndDate: { gte: monthStart } }
+              ]
+            }
+          ]
+        }
+      })
+
+      let generatedExpenses: any[] = [...monthExpenses]
+      
+      for (const recurringExpense of recurringExpenses) {
+        // Calcular a data de vencimento para este mês
+        let dueDate = new Date(monthStart)
+        
+        if (recurringExpense.recurringFrequency === 'MONTHLY') {
+          if (recurringExpense.recurringDayOfMonth) {
+            dueDate.setDate(recurringExpense.recurringDayOfMonth)
+          } else {
+            dueDate.setDate(recurringExpense.dueDate.getDate())
+          }
+        } else if (recurringExpense.recurringFrequency === 'WEEKLY') {
+          const originalDayOfWeek = recurringExpense.dueDate.getDay()
+          const daysToAdd = (originalDayOfWeek - dueDate.getDay() + 7) % 7
+          dueDate.setDate(dueDate.getDate() + daysToAdd)
+        } else if (recurringExpense.recurringFrequency === 'YEARLY') {
+          dueDate.setMonth(recurringExpense.dueDate.getMonth())
+          dueDate.setDate(recurringExpense.dueDate.getDate())
+        }
+        
+        // Verificar se a data calculada está dentro do mês
+        if (dueDate >= monthStart && dueDate <= monthEnd) {
+          const existingGeneratedExpense = generatedExpenses.find(e => 
+            e.description === recurringExpense.description &&
+            e.amount === recurringExpense.amount &&
+            e.dueDate.getTime() === dueDate.getTime() &&
+            e.id.toString().startsWith('generated_')
+          )
+          
+          if (!existingGeneratedExpense) {
+            const generatedExpense = {
+              ...recurringExpense,
+              id: `generated_${recurringExpense.id}_${dueDate.getTime()}`,
+              dueDate: dueDate,
+              status: 'PENDING' as const,
+              installments: 1,
+              isRecurring: false
+            }
+            
+            generatedExpenses.push(generatedExpense)
+          }
+        }
+      }
 
       const monthIncome = monthSales.reduce((sum, sale) => {
         return sum + sale.payments.reduce((paySum, payment) => paySum + payment.amount, 0)
       }, 0)
 
-      const monthExpensesTotal = monthExpenses.reduce((sum, expense) => sum + expense.amount, 0)
+      const monthExpensesTotal = generatedExpenses.reduce((sum, expense) => sum + expense.amount, 0)
 
       projectionMonths.push({
         month: monthStart.toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }),
@@ -315,7 +496,7 @@ export async function GET(request: NextRequest) {
       summary: {
         totalIncome,
         totalExpenses,
-        totalSales: totalSales._sum.totalAmount || 0,
+        totalSales,
         netFlow,
         pendingIncome,
         pendingExpenses,

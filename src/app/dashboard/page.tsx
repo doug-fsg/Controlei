@@ -151,7 +151,25 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <Card className="spotify-hover">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total de Entradas</CardTitle>
+              <CardTitle className="text-sm font-medium">Total de Vendas</CardTitle>
+              <BarChart3 className={cn(
+                "h-4 w-4",
+                "text-blue-600 dark:text-blue-400"
+              )} />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                {formatCurrency(dashboardData?.totalSales || 0)}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Valor total das vendas
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card className="spotify-hover">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total de Entradas Previstas</CardTitle>
               <TrendingUp className={cn(
                 "h-4 w-4",
                 "text-spotify-green-light", // Light mode - verde escuro
@@ -168,24 +186,34 @@ export default function Dashboard() {
               )}>
                 {formatCurrency(dashboardData?.totalIncome || 0)}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Vendas do mês atual
-              </p>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-medium">Pendente:</span> {formatCurrency(dashboardData?.pendingIncome || 0)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-medium">Recebido:</span> {formatCurrency((dashboardData?.totalIncome || 0) - (dashboardData?.pendingIncome || 0))}
+                </p>
+              </div>
             </CardContent>
           </Card>
 
           <Card className="spotify-hover">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total de Saídas</CardTitle>
+              <CardTitle className="text-sm font-medium">Total de Saídas Previstas</CardTitle>
               <TrendingDown className="h-4 w-4 text-red-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-red-600">
                 {formatCurrency(dashboardData?.totalExpenses || 0)}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Despesas do mês atual
-              </p>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-medium">Pendente:</span> {formatCurrency(dashboardData?.pendingExpenses || 0)}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-medium">Pago:</span> {formatCurrency((dashboardData?.totalExpenses || 0) - (dashboardData?.pendingExpenses || 0))}
+                </p>
+              </div>
             </CardContent>
           </Card>
 
@@ -209,63 +237,12 @@ export default function Dashboard() {
                 {formatCurrency(dashboardData?.netBalance || 0)}
               </div>
               <p className="text-xs text-muted-foreground">
-                {dashboardData?.netBalance && dashboardData.netBalance >= 0 ? 'Lucro' : 'Prejuízo'} do período
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="spotify-hover">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pagamentos em Atraso</CardTitle>
-              <AlertCircle className="h-4 w-4 text-orange-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-orange-600">
-                {dashboardData?.overduePayments || 0}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Necessitam atenção
+                {dashboardData?.netBalance && dashboardData.netBalance >= 0 ? 'Superávit' : 'Déficit'}
               </p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Resumo de Pendências - Mais Sutil */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Card className="spotify-hover">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground">A Receber</p>
-                  <div className={cn(
-                    "text-lg font-bold",
-                    "text-spotify-green-light dark:text-spotify-green spotify:text-spotify-green"
-                  )}>
-                    {formatCurrency(dashboardData?.pendingIncome || 0)}
-                  </div>
-                </div>
-                <TrendingUp className={cn(
-                  "h-5 w-5",
-                  "text-spotify-green-light dark:text-spotify-green spotify:text-spotify-green"
-                )} />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="spotify-hover">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-muted-foreground">A Pagar</p>
-                  <div className="text-lg font-bold text-red-600 dark:text-red-400">
-                    {formatCurrency(dashboardData?.pendingExpenses || 0)}
-                  </div>
-                </div>
-                <TrendingDown className="h-5 w-5 text-red-600 dark:text-red-400" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
 
         {/* Gráfico de Projeção de Fluxo */}
         <Card className="spotify-hover">

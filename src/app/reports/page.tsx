@@ -518,16 +518,21 @@ export default function ReportsPage() {
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-xs font-medium text-muted-foreground">Total de Entradas</p>
+                          <p className="text-xs font-medium text-muted-foreground">Total de Entradas Previstas</p>
                           <div className={cn(
                             "text-lg font-bold",
                             "text-spotify-green-light dark:text-spotify-green spotify:text-spotify-green"
                           )}>
                             {formatCurrency(totals.totalIncome || 0)}
                           </div>
-                          <p className="text-xs text-muted-foreground">
-                            Pendente: {formatCurrency(summary?.pendingIncome || 0)}
-                          </p>
+                          <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">
+                              <span className="font-medium">Pendente:</span> {formatCurrency(summary?.pendingIncome || 0)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              <span className="font-medium">Recebido:</span> {formatCurrency((totals.totalIncome || 0) - (summary?.pendingIncome || 0))}
+                            </p>
+                          </div>
                         </div>
                         <TrendingUp className={cn(
                           "h-5 w-5",
@@ -541,18 +546,23 @@ export default function ReportsPage() {
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-xs font-medium text-muted-foreground">Total de Saídas</p>
+                          <p className="text-xs font-medium text-muted-foreground">Total de Saídas Previstas</p>
                           <div className="text-lg font-bold text-red-600 dark:text-red-400">
                             {formatCurrency(totals.totalExpenses || 0)}
                           </div>
-                          <p className="text-xs text-muted-foreground">
-                            Pendente: {formatCurrency(summary?.pendingExpenses || 0)}
-                          </p>
+                          <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">
+                              <span className="font-medium">Pendente:</span> {formatCurrency(summary?.pendingExpenses || 0)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              <span className="font-medium">Pago:</span> {formatCurrency((totals.totalExpenses || 0) - (summary?.pendingExpenses || 0))}
+                            </p>
+                          </div>
                         </div>
                         <TrendingDown className="h-5 w-5 text-red-600 dark:text-red-400" />
-                </div>
-              </CardContent>
-            </Card>
+                      </div>
+                    </CardContent>
+                  </Card>
 
                   <Card className="spotify-hover">
                     <CardContent className="p-4">

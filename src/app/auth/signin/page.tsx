@@ -87,7 +87,17 @@ export default function SignIn() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Senha</Label>
+                <Button
+                  type="button"
+                  variant="link"
+                  className="p-0 h-auto text-sm"
+                  onClick={() => router.push('/auth/forgot-password')}
+                >
+                  Esqueci minha senha
+                </Button>
+              </div>
               <Input
                 id="password"
                 type="password"

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,7 +10,7 @@ import { Key, ArrowLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Logo } from '@/components/ui/Logo'
 
-export default function ResetPassword() {
+function ResetPasswordForm() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -232,6 +232,27 @@ export default function ResetPassword() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function ResetPassword() {
+  return (
+    <Suspense fallback={
+      <div className={cn(
+        "min-h-screen flex items-center justify-center",
+        "bg-background",
+        "dark:bg-gradient-to-br dark:from-spotify-black dark:to-spotify-dark-gray",
+        "spotify:bg-gradient-to-br spotify:from-spotify-black spotify:to-spotify-dark-gray"
+      )}>
+        <Card className="w-full max-w-md spotify-card spotify-hover">
+          <CardContent className="pt-6">
+            <div className="text-center">Carregando...</div>
+          </CardContent>
+        </Card>
+      </div>
+    }>
+      <ResetPasswordForm />
+    </Suspense>
   )
 }
 

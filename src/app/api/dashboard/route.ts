@@ -36,12 +36,18 @@ export async function GET(request: NextRequest) {
     const [clients, recentSales, recentExpenses] = await Promise.all([
       // Total de clientes
       prisma.client.count({
-        where: { userId },
+        where: { 
+          userId,
+          organizationId: organization.id,
+        },
       }),
 
       // Vendas recentes (últimas 5)
       prisma.sale.findMany({
-        where: { userId },
+        where: { 
+          userId,
+          organizationId: organization.id,
+        },
         include: {
           client: true,
           payments: true,
@@ -54,7 +60,10 @@ export async function GET(request: NextRequest) {
 
       // Despesas recentes (últimas 5)
       prisma.expense.findMany({
-        where: { userId },
+        where: { 
+          userId,
+          organizationId: organization.id,
+        },
         include: {
           category: true,
         },
@@ -68,7 +77,10 @@ export async function GET(request: NextRequest) {
     // Contar pagamentos em atraso
     const overduePayments = await prisma.salePayment.count({
       where: {
-        sale: { userId },
+        sale: { 
+          userId,
+          organizationId: organization.id,
+        },
         status: 'PENDING',
         dueDate: {
           lt: now,

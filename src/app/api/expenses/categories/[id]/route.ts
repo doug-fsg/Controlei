@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { requireAuth, getCurrentOrganization } from '@/lib/auth-utils'
 
 const updateCategorySchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório').optional(),
@@ -14,20 +15,34 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = params
-    const body = await request.json()
+    const userId = await requireAuth()
+    const organization = await getCurrentOrganization()
     
-    // Validar dados
-    const validatedData = updateCategorySchema.parse(body)
-    
-    // TODO: Pegar userId da sessão
-    const userId = 1
+    if (!organization) {
+      return NextResponse.json(
+        { error: 'Organização não encontrada' },
+        { status: 400 }
+      )
+    }
 
-    // Verificar se categoria existe e pertence ao usuário
+    const { id } = params
+    const categoryId = parseInt(id)
+
+    if (isNaN(categoryId)) {
+      return NextResponse.json(
+        { error: 'ID da categoria inválido' },
+        { status: 400 }
+      )
+    }
+
+    const body = await request.json()
+    const validatedData = updateCategorySchema.parse(body)
+
+    // Verificar se categoria existe e pertence à organização
     const existingCategory = await prisma.expenseCategory.findFirst({
       where: {
-        id: parseInt(id),
-        userId,
+        id: categoryId,
+        organizationId: organization.id,
       },
     })
 
@@ -43,8 +58,8 @@ export async function PUT(
       const nameConflict = await prisma.expenseCategory.findFirst({
         where: {
           name: validatedData.name,
-          userId,
-          id: { not: parseInt(id) },
+          organizationId: organization.id,
+          id: { not: categoryId },
         },
       })
 
@@ -58,12 +73,19 @@ export async function PUT(
 
     // Atualizar categoria
     const category = await prisma.expenseCategory.update({
-      where: { id: parseInt(id) },
+      where: { id: categoryId },
       data: validatedData,
     })
 
     return NextResponse.json(category)
   } catch (error) {
+    if (error instanceof Error && (error.message === 'Não autorizado' || error.message === 'Acesso negado à organização')) {
+      return NextResponse.json(
+        { error: 'Não autorizado' },
+        { status: 401 }
+      )
+    }
+
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Dados inválidos', details: error.issues },
@@ -85,15 +107,31 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = params
-    // TODO: Pegar userId da sessão
-    const userId = 1
+    const userId = await requireAuth()
+    const organization = await getCurrentOrganization()
+    
+    if (!organization) {
+      return NextResponse.json(
+        { error: 'Organização não encontrada' },
+        { status: 400 }
+      )
+    }
 
-    // Verificar se categoria existe e pertence ao usuário
+    const { id } = params
+    const categoryId = parseInt(id)
+
+    if (isNaN(categoryId)) {
+      return NextResponse.json(
+        { error: 'ID da categoria inválido' },
+        { status: 400 }
+      )
+    }
+
+    // Verificar se categoria existe e pertence à organização
     const existingCategory = await prisma.expenseCategory.findFirst({
       where: {
-        id: parseInt(id),
-        userId,
+        id: categoryId,
+        organizationId: organization.id,
       },
     })
 
@@ -107,7 +145,8 @@ export async function DELETE(
     // Verificar se categoria possui despesas
     const expensesCount = await prisma.expense.count({
       where: {
-        categoryId: parseInt(id),
+        categoryId: categoryId,
+        organizationId: organization.id,
       },
     })
 
@@ -120,11 +159,18 @@ export async function DELETE(
 
     // Deletar categoria
     await prisma.expenseCategory.delete({
-      where: { id: parseInt(id) },
+      where: { id: categoryId },
     })
 
     return NextResponse.json({ message: 'Categoria deletada com sucesso' })
   } catch (error) {
+    if (error instanceof Error && (error.message === 'Não autorizado' || error.message === 'Acesso negado à organização')) {
+      return NextResponse.json(
+        { error: 'Não autorizado' },
+        { status: 401 }
+      )
+    }
+
     console.error('Erro ao deletar categoria:', error)
     return NextResponse.json(
       { error: 'Erro interno do servidor' },

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { requireAuth, getCurrentOrganization } from '@/lib/auth-utils'
 
 const updateClientSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório').optional(),
@@ -17,14 +18,30 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    const userId = await requireAuth()
+    const organization = await getCurrentOrganization()
+    
+    if (!organization) {
+      return NextResponse.json(
+        { error: 'Organização não encontrada' },
+        { status: 400 }
+      )
+    }
+
     const { id } = params
-    // TODO: Pegar userId da sessão
-    const userId = 1
+    const clientId = parseInt(id)
+
+    if (isNaN(clientId)) {
+      return NextResponse.json(
+        { error: 'ID do cliente inválido' },
+        { status: 400 }
+      )
+    }
 
     const client = await prisma.client.findFirst({
       where: {
-        id: parseInt(id),
-        userId,
+        id: clientId,
+        organizationId: organization.id,
       },
     })
 
@@ -37,6 +54,13 @@ export async function GET(
 
     return NextResponse.json(client)
   } catch (error) {
+    if (error instanceof Error && (error.message === 'Não autorizado' || error.message === 'Acesso negado à organização')) {
+      return NextResponse.json(
+        { error: 'Não autorizado' },
+        { status: 401 }
+      )
+    }
+
     console.error('Erro ao buscar cliente:', error)
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
@@ -51,20 +75,34 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = params
-    const body = await request.json()
+    const userId = await requireAuth()
+    const organization = await getCurrentOrganization()
     
-    // Validar dados
-    const validatedData = updateClientSchema.parse(body)
-    
-    // TODO: Pegar userId da sessão
-    const userId = 1
+    if (!organization) {
+      return NextResponse.json(
+        { error: 'Organização não encontrada' },
+        { status: 400 }
+      )
+    }
 
-    // Verificar se cliente existe e pertence ao usuário
+    const { id } = params
+    const clientId = parseInt(id)
+
+    if (isNaN(clientId)) {
+      return NextResponse.json(
+        { error: 'ID do cliente inválido' },
+        { status: 400 }
+      )
+    }
+
+    const body = await request.json()
+    const validatedData = updateClientSchema.parse(body)
+
+    // Verificar se cliente existe e pertence à organização
     const existingClient = await prisma.client.findFirst({
       where: {
-        id: parseInt(id),
-        userId,
+        id: clientId,
+        organizationId: organization.id,
       },
     })
 
@@ -77,7 +115,7 @@ export async function PUT(
 
     // Atualizar cliente
     const client = await prisma.client.update({
-      where: { id: parseInt(id) },
+      where: { id: clientId },
       data: {
         ...validatedData,
         email: validatedData.email || null,
@@ -86,6 +124,13 @@ export async function PUT(
 
     return NextResponse.json(client)
   } catch (error) {
+    if (error instanceof Error && (error.message === 'Não autorizado' || error.message === 'Acesso negado à organização')) {
+      return NextResponse.json(
+        { error: 'Não autorizado' },
+        { status: 401 }
+      )
+    }
+
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Dados inválidos', details: error.issues },
@@ -107,15 +152,31 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = params
-    // TODO: Pegar userId da sessão
-    const userId = 1
+    const userId = await requireAuth()
+    const organization = await getCurrentOrganization()
+    
+    if (!organization) {
+      return NextResponse.json(
+        { error: 'Organização não encontrada' },
+        { status: 400 }
+      )
+    }
 
-    // Verificar se cliente existe e pertence ao usuário
+    const { id } = params
+    const clientId = parseInt(id)
+
+    if (isNaN(clientId)) {
+      return NextResponse.json(
+        { error: 'ID do cliente inválido' },
+        { status: 400 }
+      )
+    }
+
+    // Verificar se cliente existe e pertence à organização
     const existingClient = await prisma.client.findFirst({
       where: {
-        id: parseInt(id),
-        userId,
+        id: clientId,
+        organizationId: organization.id,
       },
     })
 
@@ -129,7 +190,8 @@ export async function DELETE(
     // Verificar se cliente possui vendas
     const salesCount = await prisma.sale.count({
       where: {
-        clientId: parseInt(id),
+        clientId: clientId,
+        organizationId: organization.id,
       },
     })
 
@@ -142,11 +204,18 @@ export async function DELETE(
 
     // Deletar cliente
     await prisma.client.delete({
-      where: { id: parseInt(id) },
+      where: { id: clientId },
     })
 
     return NextResponse.json({ message: 'Cliente deletado com sucesso' })
   } catch (error) {
+    if (error instanceof Error && (error.message === 'Não autorizado' || error.message === 'Acesso negado à organização')) {
+      return NextResponse.json(
+        { error: 'Não autorizado' },
+        { status: 401 }
+      )
+    }
+
     console.error('Erro ao deletar cliente:', error)
     return NextResponse.json(
       { error: 'Erro interno do servidor' },

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
-import { requireAuth } from '@/lib/auth-utils'
+import { requireAuth, getCurrentOrganization } from '@/lib/auth-utils'
 
 // Schema de validação para atualização de venda
 const updateSaleSchema = z.object({
@@ -27,6 +27,15 @@ export async function GET(
 ) {
   try {
     const userId = await requireAuth()
+    const organization = await getCurrentOrganization()
+    
+    if (!organization) {
+      return NextResponse.json(
+        { error: 'Organização não encontrada' },
+        { status: 400 }
+      )
+    }
+
     const { id } = await params
     const saleId = parseInt(id)
 
@@ -40,7 +49,7 @@ export async function GET(
     const sale = await prisma.sale.findFirst({
       where: {
         id: saleId,
-        userId,
+        organizationId: organization.id,
       },
       include: {
         client: true,
@@ -83,6 +92,15 @@ export async function PUT(
 ) {
   try {
     const userId = await requireAuth()
+    const organization = await getCurrentOrganization()
+    
+    if (!organization) {
+      return NextResponse.json(
+        { error: 'Organização não encontrada' },
+        { status: 400 }
+      )
+    }
+
     const { id } = await params
     const saleId = parseInt(id)
 
@@ -96,11 +114,11 @@ export async function PUT(
     const body = await request.json()
     const validatedData = updateSaleSchema.parse(body)
 
-    // Verificar se a venda existe e pertence ao usuário
+    // Verificar se a venda existe e pertence à organização
     const existingSale = await prisma.sale.findFirst({
       where: {
         id: saleId,
-        userId,
+        organizationId: organization.id,
       },
     })
 
@@ -258,6 +276,15 @@ export async function DELETE(
 ) {
   try {
     const userId = await requireAuth()
+    const organization = await getCurrentOrganization()
+    
+    if (!organization) {
+      return NextResponse.json(
+        { error: 'Organização não encontrada' },
+        { status: 400 }
+      )
+    }
+
     const { id } = await params
     const saleId = parseInt(id)
 
@@ -268,11 +295,11 @@ export async function DELETE(
       )
     }
 
-    // Verificar se a venda existe e pertence ao usuário
+    // Verificar se a venda existe e pertence à organização
     const existingSale = await prisma.sale.findFirst({
       where: {
         id: saleId,
-        userId,
+        organizationId: organization.id,
       },
     })
 

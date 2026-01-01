@@ -12,12 +12,13 @@ const updateUserSchema = z.object({
 // PUT /api/organizations/users/[id] - Atualizar usuário da organização
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const userId = await requireAuth()
     const organization = await getCurrentOrganization()
-    const targetUserId = parseInt(params.id)
+    const { id } = await params
+    const targetUserId = parseInt(id)
     
     if (!organization || isNaN(targetUserId)) {
       return NextResponse.json(
@@ -133,12 +134,13 @@ export async function PUT(
 // DELETE /api/organizations/users/[id] - Remover usuário da organização
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const userId = await requireAuth()
     const organization = await getCurrentOrganization()
-    const targetUserId = parseInt(params.id)
+    const { id } = await params
+    const targetUserId = parseInt(id)
     
     if (!organization || isNaN(targetUserId)) {
       return NextResponse.json(

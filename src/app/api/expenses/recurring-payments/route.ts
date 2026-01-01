@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { requireAuth, getCurrentOrganization } from '@/lib/auth-utils'
 
 // Schema de validação para pagamento de despesa recorrente
 const payRecurringExpenseSchema = z.object({
@@ -13,17 +14,24 @@ const payRecurringExpenseSchema = z.object({
 // POST /api/expenses/recurring-payments - Marcar pagamento de despesa recorrente
 export async function POST(request: NextRequest) {
   try {
+    const userId = await requireAuth()
+    const organization = await getCurrentOrganization()
+    
+    if (!organization) {
+      return NextResponse.json(
+        { error: 'Organização não encontrada' },
+        { status: 400 }
+      )
+    }
+
     const body = await request.json()
     const validatedData = payRecurringExpenseSchema.parse(body)
-    
-    // TODO: Pegar userId da sessão
-    const userId = 1
 
-    // Verificar se a despesa existe e é recorrente
+    // Verificar se a despesa existe, é recorrente e pertence à organização
     const expense = await prisma.expense.findFirst({
       where: {
         id: validatedData.expenseId,
-        userId,
+        organizationId: organization.id,
         isRecurring: true,
       },
     })
@@ -69,6 +77,13 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(payment, { status: 201 })
   } catch (error) {
+    if (error instanceof Error && (error.message === 'Não autorizado' || error.message === 'Acesso negado à organização')) {
+      return NextResponse.json(
+        { error: 'Não autorizado' },
+        { status: 401 }
+      )
+    }
+
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Dados inválidos', details: error.issues },
@@ -87,12 +102,21 @@ export async function POST(request: NextRequest) {
 // GET /api/expenses/recurring-payments - Listar pagamentos de despesas recorrentes
 export async function GET(request: NextRequest) {
   try {
-    // TODO: Pegar userId da sessão
-    const userId = 1
+    const userId = await requireAuth()
+    const organization = await getCurrentOrganization()
+    
+    if (!organization) {
+      return NextResponse.json(
+        { error: 'Organização não encontrada' },
+        { status: 400 }
+      )
+    }
 
     const payments = await prisma.recurringExpensePayment.findMany({
       where: {
-        userId,
+        expense: {
+          organizationId: organization.id,
+        },
       },
       include: {
         expense: {
@@ -108,6 +132,13 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(payments)
   } catch (error) {
+    if (error instanceof Error && (error.message === 'Não autorizado' || error.message === 'Acesso negado à organização')) {
+      return NextResponse.json(
+        { error: 'Não autorizado' },
+        { status: 401 }
+      )
+    }
+
     console.error('Erro ao buscar pagamentos recorrentes:', error)
     return NextResponse.json(
       { error: 'Erro interno do servidor' },

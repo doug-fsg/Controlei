@@ -46,7 +46,7 @@ export function Logo({ className = '', showText = true, size = 'md' }: LogoProps
             maxHeight: `${config.height}px`
           }}
           priority
-          unoptimized={logoSrc.startsWith('/uploads/')} // Não otimizar logos carregadas pelo usuário
+          unoptimized={logoSrc.startsWith('/api/organizations/logo/')} // Não otimizar logos carregadas pelo usuário
         />
       </div>
       {showText && (
@@ -82,7 +82,7 @@ export function LogoIcon({ className = '' }: { className?: string }) {
             maxHeight: '32px'
           }}
           priority
-          unoptimized={iconSrc.startsWith('/uploads/')} // Não otimizar logos carregadas pelo usuário
+          unoptimized={iconSrc.startsWith('/api/organizations/logo/')} // Não otimizar logos carregadas pelo usuário
         />
       </div>
     </Link>

@@ -35,11 +35,11 @@ export default function SettingsPage() {
       return
     }
 
-    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml']
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg']
     if (!allowedTypes.includes(file.type)) {
       toast({
         title: "Erro",
-        description: "Formato não suportado. Use PNG, JPG ou SVG",
+        description: "Formato não suportado. Use PNG ou JPG",
         variant: "destructive"
       })
       return
@@ -246,7 +246,7 @@ export default function SettingsPage() {
                         Clique para selecionar ou arraste uma imagem
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        PNG, JPG ou SVG até 2MB
+                        PNG ou JPG até 2MB
                       </p>
                     </div>
                   )}
@@ -255,7 +255,7 @@ export default function SettingsPage() {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/png,image/jpeg,image/jpg,image/svg+xml"
+                  accept="image/png,image/jpeg,image/jpg"
                   onChange={handleFileSelect}
                   className="hidden"
                 />
@@ -297,9 +297,9 @@ export default function SettingsPage() {
               <p><strong>Especificações recomendadas:</strong></p>
               <ul className="list-disc list-inside space-y-1 ml-2">
                 <li>Proporção: 3.75:1 (ex: 240x64px, 300x80px)</li>
-                <li>Formatos: PNG (recomendado), JPG, SVG</li>
+                <li>Formatos: PNG (recomendado), JPG</li>
                 <li>Tamanho máximo: 2MB</li>
-                <li>Fundo transparente para PNG/SVG</li>
+                <li>Fundo transparente para PNG</li>
               </ul>
             </div>
           </CardContent>

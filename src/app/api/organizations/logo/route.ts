@@ -61,39 +61,91 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml']
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg']
     console.log('🎨 [LOGO API] File type check:', file.type, 'allowed:', allowedTypes)
     if (!allowedTypes.includes(file.type)) {
       console.log('❌ [LOGO API] Formato não suportado')
       return NextResponse.json(
-        { error: 'Formato não suportado. Use PNG, JPG ou SVG' },
+        { error: 'Formato não suportado. Use PNG ou JPG' },
         { status: 400 }
       )
     }
 
-    // Criar diretório se não existir
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'logos')
+    // Criar diretório se não existir (fora de /public para segurança)
+    const uploadDir = path.join(process.cwd(), 'uploads', 'logos')
     console.log('📂 [LOGO API] Upload directory:', uploadDir)
     if (!existsSync(uploadDir)) {
       console.log('📁 [LOGO API] Criando diretório de upload')
       await mkdir(uploadDir, { recursive: true })
     }
 
-    // Gerar nome do arquivo
-    const extension = file.name.split('.').pop()
-    const fileName = `org-${organization.id}.${extension}`
+    // Sanitizar extensão e validar contra whitelist
+    const extension = file.name.split('.').pop()?.toLowerCase()
+    const allowedExtensions = ['png', 'jpg', 'jpeg']
+
+    if (!extension || !allowedExtensions.includes(extension)) {
+      console.log('❌ [LOGO API] Extensão inválida:', extension)
+      return NextResponse.json(
+        { error: 'Extensão inválida. Use PNG ou JPG' },
+        { status: 400 }
+      )
+    }
+
+    // Sanitizar extensão (remover caracteres especiais)
+    const sanitizedExtension = extension.replace(/[^a-z0-9]/gi, '')
+
+    // Prevenir path traversal no nome do arquivo
+    const sanitizedFileName = file.name
+      .replace(/[^a-zA-Z0-9._-]/g, '')
+      .replace(/\.\./g, '')
+      .substring(0, 255)
+
+    const fileName = `org-${organization.id}.${sanitizedExtension}`
     const filePath = path.join(uploadDir, fileName)
     console.log('📝 [LOGO API] File path:', filePath)
 
-    // Salvar arquivo
-    console.log('💾 [LOGO API] Salvando arquivo...')
+    // Validar magic bytes (assinatura real do arquivo)
+    console.log('🔍 [LOGO API] Validando magic bytes...')
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
+    const fileSignature = buffer.toString('hex', 0, 4).toUpperCase()
+
+    const validSignatures: Record<string, string> = {
+      '89504E47': 'png', // PNG: 89 50 4E 47
+      'FFD8FFE0': 'jpg', // JPEG: FF D8 FF E0
+      'FFD8FFE1': 'jpg', // JPEG: FF D8 FF E1
+      'FFD8FFDB': 'jpg', // JPEG: FF D8 FF DB
+      'FFD8FFEE': 'jpg', // JPEG: FF D8 FF EE
+    }
+
+    const detectedType = validSignatures[fileSignature]
+
+    if (!detectedType) {
+      console.log('❌ [LOGO API] Magic bytes inválidos:', fileSignature)
+      return NextResponse.json(
+        { error: 'Tipo de arquivo inválido. Arquivo corrompido ou não é uma imagem válida' },
+        { status: 400 }
+      )
+    }
+
+    // Verificar se tipo detectado corresponde à extensão
+    if (detectedType !== sanitizedExtension) {
+      console.log('❌ [LOGO API] Extensão não corresponde ao tipo real:', detectedType, 'vs', sanitizedExtension)
+      return NextResponse.json(
+        { error: 'Extensão do arquivo não corresponde ao tipo real do arquivo' },
+        { status: 400 }
+      )
+    }
+
+    console.log('✅ [LOGO API] Validação de magic bytes passou:', detectedType)
+
+    // Salvar arquivo
+    console.log('💾 [LOGO API] Salvando arquivo...')
     await writeFile(filePath, buffer)
     console.log('✅ [LOGO API] Arquivo salvo com sucesso')
 
-    // Atualizar URL no banco
-    const logoUrl = `/uploads/logos/${fileName}`
+    // Atualizar URL no banco (usar endpoint protegido)
+    const logoUrl = `/api/organizations/logo/${fileName}`
     console.log('🗄️ [LOGO API] Atualizando banco com logoUrl:', logoUrl)
     console.log('🗄️ [LOGO API] Organization ID:', organization.id)
     
@@ -113,6 +165,12 @@ export async function POST(request: NextRequest) {
       success: true, 
       logoUrl,
       message: 'Logo atualizada com sucesso' 
+    }, {
+      headers: {
+        'Content-Security-Policy': "default-src 'self'; img-src 'self' data:; script-src 'self'",
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+      }
     })
 
   } catch (error) {

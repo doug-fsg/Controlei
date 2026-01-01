@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { requireAuth, getCurrentOrganization } from '@/lib/auth-utils'
 
 const markPaymentSchema = z.object({
   status: z.enum(['PAID', 'PENDING']),
@@ -13,6 +14,16 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const userId = await requireAuth()
+    const organization = await getCurrentOrganization()
+    
+    if (!organization) {
+      return NextResponse.json(
+        { error: 'Organização não encontrada' },
+        { status: 400 }
+      )
+    }
+
     const { id } = await params
     const paymentId = parseInt(id, 10)
     
@@ -24,19 +35,14 @@ export async function PATCH(
     }
     
     const body = await request.json()
-    
-    // Validar dados
     const validatedData = markPaymentSchema.parse(body)
-    
-    // TODO: Pegar userId da sessão
-    const userId = 1
 
-    // Verificar se pagamento existe e pertence ao usuário
+    // Verificar se pagamento existe e pertence à organização
     const payment = await prisma.salePayment.findFirst({
       where: {
         id: paymentId,
         sale: {
-          userId,
+          organizationId: organization.id,
         },
       },
     })
@@ -61,6 +67,13 @@ export async function PATCH(
 
     return NextResponse.json(updatedPayment)
   } catch (error) {
+    if (error instanceof Error && (error.message === 'Não autorizado' || error.message === 'Acesso negado à organização')) {
+      return NextResponse.json(
+        { error: 'Não autorizado' },
+        { status: 401 }
+      )
+    }
+
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: 'Dados inválidos', details: error.issues },
